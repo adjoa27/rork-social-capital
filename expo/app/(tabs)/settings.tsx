@@ -61,7 +61,7 @@ export default function SettingsScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.profileName}>{user?.name ?? "Alex Morgan"}</Text>
           <Text style={styles.profileMeta}>
-            {user?.email ?? "alex@warmly.app"} · via {user?.provider}
+            {user?.email ?? "alex@socialcapital.app"} · via {user?.provider}
           </Text>
           <View style={styles.profileStats}>
             <View style={styles.pill}>
@@ -87,7 +87,7 @@ export default function SettingsScreen() {
           <Crown size={20} color="#FFFFFF" strokeWidth={2.6} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.proTitle}>Warmly Pro</Text>
+          <Text style={styles.proTitle}>Social Capital Pro</Text>
           <Text style={styles.proBody}>
             Unlimited AI drafts, voice notes & calendar sync.
           </Text>
@@ -148,7 +148,7 @@ export default function SettingsScreen() {
         <Row
           icon={<Mail size={18} color={Colors.text} strokeWidth={2.4} />}
           label="Support"
-          accessory="hello@warmly.app"
+          accessory="hello@socialcapital.app"
         />
       </Section>
 
@@ -163,7 +163,7 @@ export default function SettingsScreen() {
         <Text style={styles.signOutText}>Sign out</Text>
       </Pressable>
 
-      <Text style={styles.version}>Warmly · v1.0.0</Text>
+      <Text style={styles.version}>Social Capital · v1.0.0</Text>
     </ScrollView>
   );
 }

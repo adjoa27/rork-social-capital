@@ -65,7 +65,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       const user: User = {
         id: `u_${Date.now()}`,
         name: overrides?.name ?? "Alex Morgan",
-        email: overrides?.email ?? "alex@warmly.app",
+        email: overrides?.email ?? "alex@socialcapital.app",
         photo: overrides?.photo,
         provider,
       };

@@ -39,7 +39,7 @@ const SLIDES: Slide[] = [
     key: "welcome",
     title: "Never let an important\nrelationship go cold.",
     body:
-      "Warmly is your AI relationship assistant — for the founders, investors and friends you'd hate to lose touch with.",
+      "Social Capital is your AI relationship assistant — for the founders, investors and friends you'd hate to lose touch with.",
     icon: <Heart size={42} color="#FFFFFF" strokeWidth={2.4} />,
     gradient: ["#1A2740", "#0F1B2D"],
   },
@@ -100,7 +100,7 @@ export default function Onboarding() {
   return (
     <View style={styles.container}>
       <View style={styles.topBar}>
-        <Text style={styles.brand}>Warmly</Text>
+        <Text style={styles.brand}>Social Capital</Text>
         <Pressable onPress={skip} hitSlop={10}>
           <Text style={styles.skip}>Skip</Text>
         </Pressable>

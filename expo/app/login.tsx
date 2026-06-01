@@ -57,7 +57,7 @@ export default function Login() {
             >
               <Heart size={28} color="#FFFFFF" strokeWidth={2.6} />
             </LinearGradient>
-            <Text style={styles.title}>Welcome to Warmly</Text>
+            <Text style={styles.title}>Welcome to Social Capital</Text>
             <Text style={styles.subtitle}>
               Your network, beautifully tended.
             </Text>

@@ -96,7 +96,7 @@ export const [ContactsProvider, useContacts] = createContextHook(() => {
           {
             id: `i_${Date.now()}`,
             type: "note",
-            title: "Added to Warmly",
+            title: "Added to Social Capital",
             date: now,
           },
         ],

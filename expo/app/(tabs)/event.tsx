@@ -96,7 +96,7 @@ export default function EventScreen() {
           <Text style={styles.eyebrow}>Conference mode</Text>
           <Text style={styles.title}>Capture every connection</Text>
           <Text style={styles.subtitle}>
-            Built for fast networking. Scan, tap, or speak — Warmly remembers
+            Built for fast networking. Scan, tap, or speak — Social Capital remembers
             the rest.
           </Text>
         </View>
@@ -162,13 +162,13 @@ export default function EventScreen() {
                   if (Platform.OS !== "web") {
                     Haptics.selectionAsync().catch(() => {});
                     Speech.speak(
-                      "Voice notes are available when you install Warmly on your device. Record quick voice memos after every conversation to help the AI remember context.",
+                      "Voice notes are available when you install Social Capital on your device. Record quick voice memos after every conversation to help the AI remember context.",
                       { rate: 0.85 }
                     );
                   } else {
                     Alert.alert(
                       "Install on device",
-                      "Voice notes are available when you install Warmly on your device via the Rork App."
+                      "Voice notes are available when you install Social Capital on your device via the Rork App."
                     );
                   }
                 }}

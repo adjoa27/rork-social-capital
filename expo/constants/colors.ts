@@ -1,5 +1,5 @@
 /**
- * Warmly design system colors.
+ * Social Capital design system colors.
  * Cream backgrounds, deep navy text, warm gold + soft purple accents.
  */
 
