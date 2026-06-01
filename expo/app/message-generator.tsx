@@ -27,73 +27,17 @@ import {
   X,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { generateText } from "ai";
-import { gateway } from "@/lib/ai-gateway";
 import { Avatar } from "@/components/Avatar";
 import { Colors } from "@/constants/colors";
-import { CHANNELS, ChannelId, Contact, TONE_OPTIONS, ToneId } from "@/constants/mockData";
+import {
+  CHANNELS,
+  ChannelId,
+  Contact,
+  TONE_OPTIONS,
+  ToneId,
+} from "@/constants/mockData";
 import { useContacts } from "@/providers/ContactsProvider";
 import { daysSince } from "@/utils/format";
-
-/** ─── AI model ───────────────────────────────────────────── */
-
-const AI_MODEL = "anthropic/claude-sonnet-4.6";
-
-/** Build the system + user prompt for the AI */
-function buildPrompt(contact: Contact, tone: ToneId, channel: ChannelId) {
-  const first = contact.name.split(" ")[0];
-  const days = daysSince(contact.lastInteraction);
-  const notes = contact.notes.slice(0, 3).join("; ");
-  const metAt = contact.metAt ? `Met at: ${contact.metAt}.` : "";
-  const company = contact.company ? `Works at ${contact.company}` : "";
-  const title = contact.title ? `as ${contact.title}` : "";
-  const context = [company, title].filter(Boolean).join(" ");
-  const category = contact.category;
-
-  const toneGuidance: Record<ToneId, string> = {
-    casual: "Write in a casual, low-key tone. Use emojis sparingly. Sound like a friend checking in.",
-    professional: "Write in a polished, respectful tone. Keep it concise and warm but business-appropriate.",
-    friendly: "Write in a warm, personal tone. Sound genuinely interested in how they're doing.",
-    founder: "Write in a direct, peer-to-peer founder tone. Be authentic, no corporate speak. Acknowledge the shared founder journey.",
-    investor: "Write in a confident, metric-aware tone. Mention progress without bragging. Make it easy for them to engage.",
-    reconnect: "Write a warm re-engagement message. Acknowledge the time gap gracefully. Express genuine curiosity about what they're up to.",
-  };
-
-  const channelGuidance: Record<ChannelId, string> = {
-    text: "Format as a short, natural text message. 2-3 sentences max. No subject line.",
-    email: "Format as a proper email with Subject: line, greeting, body paragraph(s), and sign-off. Keep it warm but structured.",
-    linkedin: "Format as a LinkedIn message. Slightly more polished than text but still personal. 2-4 sentences.",
-  };
-
-  return {
-    system: `You are a warm, thoughtful AI assistant that helps people write personalized outreach messages to maintain their professional and personal relationships. 
-
-You write messages that feel genuinely human — never corporate, never generic. You incorporate specific details the user has saved about each contact (where they met, shared interests, recent life events) to make every message feel personalized.
-
-${toneGuidance[tone]}
-${channelGuidance[channel]}
-
-Important rules:
-- NEVER use placeholder text like "[insert detail]" or "[their company]"
-- Use the specific details provided below about the contact
-- Keep the message concise and natural
-- The message should feel like it was written by a real person who genuinely cares about the relationship
-- Do NOT include quotes or meta-commentary about the message itself
-- Output ONLY the message text, nothing else`,
-
-    prompt: `Write a personalized ${tone} outreach message for ${contact.name} (goes by "${first}").
-
-About ${first}:
-- Category: ${category}
-- ${context}
-- ${metAt}
-- Last interaction: ${days} days ago
-- Notes I've saved about them: ${notes || "No specific notes."}
-- My relationship warmth with them is: ${contact.warmth}
-
-Write the message now.`,
-  };
-}
 
 export default function MessageGenerator() {
   const insets = useSafeAreaInsets();
@@ -111,39 +55,25 @@ export default function MessageGenerator() {
     [contacts, selectedId]
   );
 
-  const generate = async () => {
+  const generate = () => {
     if (!contact) return;
     setGenerating(true);
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
-
-    try {
-      const { system, prompt } = buildPrompt(contact, tone, channel);
-      const result = await generateText({
-        model: gateway(AI_MODEL),
-        system,
-        prompt,
-        temperature: 0.8,
-        maxTokens: 300,
-      });
-      setDraft(result.text.trim());
-    } catch (err) {
-      console.error("[Warmly] AI generation failed:", err);
-      Alert.alert(
-        "Couldn't generate message",
-        "Please check your connection and try again."
-      );
-    } finally {
+    setTimeout(() => {
+      setDraft(composeDraft(contact, tone, channel));
       setGenerating(false);
-    }
+    }, 700);
   };
 
   const copyToClipboard = async () => {
     if (!draft) return;
     await Clipboard.setStringAsync(draft);
     if (Platform.OS !== "web") {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+        () => {}
+      );
     }
     Alert.alert("Copied", "Draft copied to clipboard.");
   };
@@ -160,7 +90,11 @@ export default function MessageGenerator() {
     if (!contact || !draft) return;
 
     const typeLabel =
-      channel === "linkedin" ? "LinkedIn message" : channel === "email" ? "Email" : "Text";
+      channel === "linkedin"
+        ? "LinkedIn message"
+        : channel === "email"
+        ? "Email"
+        : "Text";
 
     if (channel === "email") {
       const isAvailable = await MailComposer.isAvailableAsync();
@@ -175,7 +109,10 @@ export default function MessageGenerator() {
       const lines = draft.split("\n");
       const subjectLine = lines.find((l) => l.startsWith("Subject:"));
       const subject = subjectLine ? subjectLine.replace("Subject:", "").trim() : "";
-      const body = lines.filter((l) => !l.startsWith("Subject:")).join("\n").trim();
+      const body = lines
+        .filter((l) => !l.startsWith("Subject:"))
+        .join("\n")
+        .trim();
       await MailComposer.composeAsync({
         recipients: contact.email ? [contact.email] : [],
         subject,
@@ -185,15 +122,22 @@ export default function MessageGenerator() {
       const isAvailable = await SMS.isAvailableAsync();
       if (!isAvailable || !contact.phone) {
         if (!contact.phone) {
-          Alert.alert("No phone number", "This contact doesn't have a phone number saved.");
+          Alert.alert(
+            "No phone number",
+            "This contact doesn't have a phone number saved."
+          );
         } else {
           await Clipboard.setStringAsync(draft);
-          Alert.alert("SMS unavailable", "SMS is not available on this device. Draft copied to clipboard.");
+          Alert.alert(
+            "SMS unavailable",
+            "SMS is not available on this device. Draft copied to clipboard."
+          );
         }
         return;
       }
       await SMS.sendSMSAsync([contact.phone], draft);
     } else {
+      // LinkedIn — copy and confirm
       await Clipboard.setStringAsync(draft);
       Alert.alert(
         "Copied for LinkedIn",
@@ -208,7 +152,9 @@ export default function MessageGenerator() {
       date: new Date().toISOString(),
     });
     if (Platform.OS !== "web") {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+        () => {}
+      );
     }
     router.back();
   };
@@ -216,11 +162,18 @@ export default function MessageGenerator() {
   return (
     <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 140 }}
+        contentContainerStyle={{
+          paddingTop: insets.top + 12,
+          paddingBottom: insets.bottom + 140,
+        }}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.iconBtn} hitSlop={10}>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.iconBtn}
+            hitSlop={10}
+          >
             <X size={20} color={Colors.text} strokeWidth={2.4} />
           </Pressable>
           <View>
@@ -233,15 +186,25 @@ export default function MessageGenerator() {
         {/* Recipient picker */}
         {contact ? (
           <View style={styles.recipient}>
-            <Avatar name={contact.name} photo={contact.photo} size={48} ring />
+            <Avatar
+              name={contact.name}
+              photo={contact.photo}
+              size={48}
+              ring
+            />
             <View style={{ flex: 1 }}>
               <Text style={styles.recipName}>{contact.name}</Text>
               <Text style={styles.recipMeta}>
-                {contact.company ? `${contact.company} · ` : ""}
+                {contact.company
+                  ? `${contact.company} · `
+                  : ""}
                 {daysSince(contact.lastInteraction)}d since contact
               </Text>
             </View>
-            <Pressable onPress={() => setSelectedId(undefined)} style={styles.changeBtn}>
+            <Pressable
+              onPress={() => setSelectedId(undefined)}
+              style={styles.changeBtn}
+            >
               <Text style={styles.changeText}>Change</Text>
             </Pressable>
           </View>
@@ -249,10 +212,17 @@ export default function MessageGenerator() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}
+            contentContainerStyle={{
+              paddingHorizontal: 20,
+              gap: 10,
+            }}
           >
             {contacts.slice(0, 12).map((c) => (
-              <Pressable key={c.id} onPress={() => setSelectedId(c.id)} style={styles.pickerCard}>
+              <Pressable
+                key={c.id}
+                onPress={() => setSelectedId(c.id)}
+                style={styles.pickerCard}
+              >
                 <Avatar name={c.name} photo={c.photo} size={48} />
                 <Text style={styles.pickerName} numberOfLines={1}>
                   {c.name.split(" ")[0]}
@@ -267,15 +237,31 @@ export default function MessageGenerator() {
         <View style={styles.channelRow}>
           {CHANNELS.map((c) => {
             const active = channel === c.id;
-            const Icon = c.id === "email" ? Mail : c.id === "linkedin" ? Linkedin : MessageSquare;
+            const Icon =
+              c.id === "email"
+                ? Mail
+                : c.id === "linkedin"
+                ? Linkedin
+                : MessageSquare;
             return (
               <Pressable
                 key={c.id}
                 onPress={() => setChannel(c.id)}
                 style={[styles.channelBtn, active && styles.channelActive]}
               >
-                <Icon size={16} color={active ? "#FFFFFF" : Colors.text} strokeWidth={2.4} />
-                <Text style={[styles.channelText, active && { color: "#FFFFFF" }]}>{c.label}</Text>
+                <Icon
+                  size={16}
+                  color={active ? "#FFFFFF" : Colors.text}
+                  strokeWidth={2.4}
+                />
+                <Text
+                  style={[
+                    styles.channelText,
+                    active && { color: "#FFFFFF" },
+                  ]}
+                >
+                  {c.label}
+                </Text>
               </Pressable>
             );
           })}
@@ -293,8 +279,20 @@ export default function MessageGenerator() {
                 style={[styles.toneCard, active && styles.toneActive]}
               >
                 <Text style={styles.toneEmoji}>{t.emoji}</Text>
-                <Text style={[styles.toneLabel, active && { color: "#FFFFFF" }]}>{t.label}</Text>
-                <Text style={[styles.toneDesc, active && { color: "rgba(255,255,255,0.78)" }]}>
+                <Text
+                  style={[
+                    styles.toneLabel,
+                    active && { color: "#FFFFFF" },
+                  ]}
+                >
+                  {t.label}
+                </Text>
+                <Text
+                  style={[
+                    styles.toneDesc,
+                    active && { color: "rgba(255,255,255,0.78)" },
+                  ]}
+                >
                   {t.description}
                 </Text>
               </Pressable>
@@ -302,7 +300,7 @@ export default function MessageGenerator() {
           })}
         </View>
 
-        {/* Generate button */}
+        {/* Generate */}
         <Pressable
           onPress={generate}
           disabled={!contact || generating}
@@ -324,12 +322,16 @@ export default function MessageGenerator() {
               <Wand2 size={18} color="#FFFFFF" strokeWidth={2.6} />
             )}
             <Text style={styles.generateText}>
-              {generating ? "Crafting your draft…" : draft ? "Regenerate draft" : "Generate draft"}
+              {generating
+                ? "Crafting your draft…"
+                : draft
+                ? "Regenerate draft"
+                : "Generate draft"}
             </Text>
           </LinearGradient>
         </Pressable>
 
-        {/* Memory context */}
+        {/* Memory */}
         {contact ? (
           <View style={styles.memory}>
             <View style={styles.memoryHead}>
@@ -337,8 +339,16 @@ export default function MessageGenerator() {
               <Text style={styles.memoryHeadText}>AI memory used</Text>
             </View>
             <View style={{ gap: 6, marginTop: 8 }}>
-              {contact.metAt ? <MemoryBullet label="Where you met" value={contact.metAt} /> : null}
-              <MemoryBullet label="Last interaction" value={`${daysSince(contact.lastInteraction)}d ago`} />
+              {contact.metAt ? (
+                <MemoryBullet
+                  label="Where you met"
+                  value={contact.metAt}
+                />
+              ) : null}
+              <MemoryBullet
+                label="Last interaction"
+                value={`${daysSince(contact.lastInteraction)}d ago`}
+              />
               {contact.notes.slice(0, 2).map((n, i) => (
                 <MemoryBullet key={i} label="Note" value={n} />
               ))}
@@ -366,7 +376,10 @@ export default function MessageGenerator() {
             <Text style={styles.draftText}>{draft}</Text>
             <Pressable
               onPress={sendAndLog}
-              style={({ pressed }) => [styles.send, pressed && { opacity: 0.9 }]}
+              style={({ pressed }) => [
+                styles.send,
+                pressed && { opacity: 0.9 },
+              ]}
             >
               <Text style={styles.sendText}>Looks good — log as sent</Text>
             </Pressable>
@@ -378,7 +391,8 @@ export default function MessageGenerator() {
 }
 
 function Linkedin(props: { size: number; color: string; strokeWidth: number }) {
-  const { Linkedin: Icon } = require("lucide-react-native") as typeof import("lucide-react-native");
+  const { Linkedin: Icon } =
+    require("lucide-react-native") as typeof import("lucide-react-native");
   return <Icon {...props} />;
 }
 
@@ -390,6 +404,66 @@ function MemoryBullet({ label, value }: { label: string; value: string }) {
       <Text style={styles.memValue}>{value}</Text>
     </View>
   );
+}
+
+function composeDraft(
+  contact: Contact,
+  tone: ToneId,
+  channel: ChannelId
+): string {
+  const first = contact.name.split(" ")[0];
+  const days = daysSince(contact.lastInteraction);
+  const noteLine =
+    contact.notes[0] && contact.notes[0].length < 120
+      ? contact.notes[0]
+      : undefined;
+  const sharedHook = noteLine
+    ? ` I keep thinking about what you mentioned — "${noteLine.toLowerCase()}".`
+    : "";
+
+  const intro: Record<ToneId, string> = {
+    casual: `Hey ${first} 👋`,
+    professional: `Hi ${first},`,
+    friendly: `Hi ${first} — hope you're doing well!`,
+    founder: `Hey ${first},`,
+    investor: `Hi ${first},`,
+    reconnect: `Hey ${first} — long time!`,
+  };
+
+  const body: Record<ToneId, string> = {
+    casual: `It's been a minute (${days} days, but who's counting). Wanted to check in and see how things are going.${sharedHook}`,
+    professional: `It has been ${days} days since we last connected and I wanted to reach back out.${sharedHook} I'd love to find time to catch up if your schedule allows.`,
+    friendly: `Was just thinking about you and figured I'd send a quick note.${sharedHook} Would love to grab coffee or hop on a quick call soon.`,
+    founder: `Quick founder-to-founder ping. Things are moving fast on our end and I'd love to compare notes.${sharedHook} Open to a 20-min call this week?`,
+    investor: `Wanted to share a quick update.${sharedHook} We've been making strong progress on KPIs and I'd love your perspective on what's next. Happy to share a short deck.`,
+    reconnect: `It's been ${days} days and I didn't want to let our connection go cold.${sharedHook} Genuinely curious how you're doing — and whether there's anything I can help with on my side.`,
+  };
+
+  const close: Record<ToneId, string> = {
+    casual: `Talk soon!`,
+    professional: `Best,\n`,
+    friendly: `Talk soon,\n`,
+    founder: `Cheers,\n`,
+    investor: `Thanks,\n`,
+    reconnect: `Looking forward,\n`,
+  };
+
+  if (channel === "email") {
+    const subject =
+      tone === "investor"
+        ? "Quick update from our side"
+        : tone === "reconnect"
+        ? `Long overdue catch-up`
+        : `Hey, it's been a while`;
+    return `Subject: ${subject}\n\n${intro[tone]}\n\n${body[tone]}\n\n${close[tone]}`;
+  }
+
+  if (channel === "linkedin") {
+    return `${intro[tone]} ${body[tone]} ${close[tone]}`;
+  }
+
+  // text — shorter
+  return `${intro[tone]} ${body[tone].split(". ").slice(0, 2).join(". ")}.`;
 }
 
 const styles = StyleSheet.create({
@@ -409,7 +483,13 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     textAlign: "center",
   },
-  title: { fontSize: 17, fontWeight: "800", color: Colors.text, letterSpacing: -0.3, textAlign: "center" },
+  title: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: Colors.text,
+    letterSpacing: -0.3,
+    textAlign: "center",
+  },
   iconBtn: {
     width: 40,
     height: 40,
@@ -431,15 +511,27 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
   },
-  recipName: { fontSize: 15, fontWeight: "700", color: Colors.text },
-  recipMeta: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  recipName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: Colors.text,
+  },
+  recipMeta: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
   changeBtn: {
     backgroundColor: Colors.backgroundAlt,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
   },
-  changeText: { fontSize: 12, fontWeight: "700", color: Colors.text },
+  changeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.text,
+  },
   pickerCard: {
     width: 80,
     backgroundColor: Colors.card,
@@ -448,7 +540,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
-  pickerName: { fontSize: 12, fontWeight: "600", color: Colors.text },
+  pickerName: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Colors.text,
+  },
   sectionLabel: {
     marginTop: 20,
     marginHorizontal: 20,
@@ -459,7 +555,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     textTransform: "uppercase",
   },
-  channelRow: { flexDirection: "row", gap: 8, paddingHorizontal: 20 },
+  channelRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 20,
+  },
   channelBtn: {
     flex: 1,
     flexDirection: "row",
@@ -470,8 +570,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
   },
-  channelActive: { backgroundColor: Colors.text },
-  channelText: { fontSize: 13, fontWeight: "700", color: Colors.text },
+  channelActive: {
+    backgroundColor: Colors.text,
+  },
+  channelText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: Colors.text,
+  },
   toneGrid: {
     paddingHorizontal: 20,
     flexDirection: "row",
@@ -489,11 +595,27 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
   },
-  toneActive: { backgroundColor: Colors.text },
-  toneEmoji: { fontSize: 22 },
-  toneLabel: { fontSize: 14, fontWeight: "700", color: Colors.text },
-  toneDesc: { fontSize: 12, color: Colors.textSecondary },
-  generate: { marginHorizontal: 20, marginTop: 18, borderRadius: 16, overflow: "hidden" },
+  toneActive: {
+    backgroundColor: Colors.text,
+  },
+  toneEmoji: {
+    fontSize: 22,
+  },
+  toneLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: Colors.text,
+  },
+  toneDesc: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  generate: {
+    marginHorizontal: 20,
+    marginTop: 18,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
   generateInner: {
     flexDirection: "row",
     alignItems: "center",
@@ -501,7 +623,11 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 16,
   },
-  generateText: { color: "#FFFFFF", fontWeight: "800", fontSize: 15 },
+  generateText: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+    fontSize: 15,
+  },
   memory: {
     marginHorizontal: 20,
     marginTop: 14,
@@ -511,7 +637,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  memoryHead: { flexDirection: "row", alignItems: "center", gap: 6 },
+  memoryHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
   memoryHeadText: {
     fontSize: 11,
     fontWeight: "800",
@@ -519,7 +649,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     textTransform: "uppercase",
   },
-  memBullet: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
+  memBullet: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+  },
   memDot: {
     width: 5,
     height: 5,
@@ -527,8 +661,17 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.goldDeep,
     marginTop: 7,
   },
-  memLabel: { fontSize: 12, fontWeight: "700", color: Colors.text },
-  memValue: { flex: 1, fontSize: 12, color: Colors.textSecondary, flexShrink: 1 },
+  memLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.text,
+  },
+  memValue: {
+    flex: 1,
+    fontSize: 12,
+    color: Colors.textSecondary,
+    flexShrink: 1,
+  },
   draftCard: {
     marginHorizontal: 20,
     marginTop: 16,
@@ -546,7 +689,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 10,
   },
-  draftTitle: { fontSize: 15, fontWeight: "800", color: Colors.text, letterSpacing: -0.2 },
+  draftTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: Colors.text,
+    letterSpacing: -0.2,
+  },
   iconChip: {
     width: 30,
     height: 30,
@@ -555,7 +703,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  draftText: { fontSize: 14, color: Colors.text, lineHeight: 21 },
+  draftText: {
+    fontSize: 14,
+    color: Colors.text,
+    lineHeight: 21,
+  },
   send: {
     marginTop: 14,
     backgroundColor: Colors.text,
@@ -563,5 +715,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
   },
-  sendText: { color: "#FFFFFF", fontWeight: "800", fontSize: 14 },
+  sendText: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+    fontSize: 14,
+  },
 });

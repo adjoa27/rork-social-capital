@@ -1,5 +1,3 @@
-import "@/lib/polyfills"; // must be imported before any AI SDK import
-
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as Notifications from "expo-notifications";
@@ -43,10 +41,22 @@ function RootLayoutNav() {
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="login" />
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="contact/[id]" options={{ animation: "slide_from_right" }} />
-      <Stack.Screen name="add-contact" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-      <Stack.Screen name="message-generator" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-      <Stack.Screen name="scan-card" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+      <Stack.Screen
+        name="contact/[id]"
+        options={{ animation: "slide_from_right" }}
+      />
+      <Stack.Screen
+        name="add-contact"
+        options={{ presentation: "modal", animation: "slide_from_bottom" }}
+      />
+      <Stack.Screen
+        name="message-generator"
+        options={{ presentation: "modal", animation: "slide_from_bottom" }}
+      />
+      <Stack.Screen
+        name="scan-card"
+        options={{ presentation: "modal", animation: "slide_from_bottom" }}
+      />
     </Stack>
   );
 }

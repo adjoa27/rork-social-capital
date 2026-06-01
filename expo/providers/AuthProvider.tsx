@@ -1,262 +1,89 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Platform } from "react-native";
-import * as WebBrowser from "expo-web-browser";
-import * as Linking from "expo-linking";
-import * as SecureStore from "expo-secure-store";
 import createContextHook from "@nkzw/create-context-hook";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useState } from "react";
 
-/** ─── Crypto helpers (PKCE) ─────────────────────────────── */
+const STORAGE_KEY = "warmly:auth:v1";
 
-function generateCodeVerifier(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return btoa(String.fromCharCode(...bytes))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-}
-
-async function generateCodeChallenge(verifier: string): Promise<string> {
-  const data = new TextEncoder().encode(verifier);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return btoa(String.fromCharCode(...new Uint8Array(hash)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-}
-
-/** Decode the JWT payload to extract user info and check expiration. */
-function userFromToken(token: string): AuthUser | null {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const payload = JSON.parse(atob(base64));
-    if (payload.exp && payload.exp * 1000 < Date.now()) return null;
-    return {
-      id: payload.sub,
-      email: payload.email ?? "",
-      name: payload.name,
-      picture: payload.picture,
-    };
-  } catch {
-    return null;
-  }
-}
-
-/** ─── Types ──────────────────────────────────────────────── */
-
-export interface AuthUser {
+export interface User {
   id: string;
+  name: string;
   email: string;
-  name?: string;
-  picture?: string;
+  photo?: string;
+  provider: "email" | "google" | "apple";
 }
 
-interface AuthContextType {
-  user: AuthUser | null;
-  isLoading: boolean;
-  isSigningIn: boolean;
-  error: string | null;
-  signIn: (provider: "google" | "apple") => Promise<void>;
-  signOut: () => Promise<void>;
-  clearError: () => void;
+interface AuthState {
+  hasOnboarded: boolean;
+  user: User | null;
 }
 
-/** ─── Env ────────────────────────────────────────────────── */
+const DEFAULT: AuthState = { hasOnboarded: false, user: null };
 
-const AUTH_URL = process.env.EXPO_PUBLIC_RORK_AUTH_URL!;
-const APP_KEY = process.env.EXPO_PUBLIC_RORK_APP_KEY!;
-const PROJECT_ID = process.env.EXPO_PUBLIC_PROJECT_ID!;
+async function loadState(): Promise<AuthState> {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT;
+    return { ...DEFAULT, ...(JSON.parse(raw) as Partial<AuthState>) };
+  } catch {
+    return DEFAULT;
+  }
+}
 
-/** ─── Provider ───────────────────────────────────────────── */
+export const [AuthProvider, useAuth] = createContextHook(() => {
+  const [state, setState] = useState<AuthState>(DEFAULT);
+  const [hydrated, setHydrated] = useState<boolean>(false);
 
-export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSigningIn, setIsSigningIn] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const codeVerifierRef = useRef<string | null>(null);
+  const query = useQuery<AuthState>({
+    queryKey: ["auth"],
+    queryFn: loadState,
+    staleTime: Infinity,
+  });
 
-  const clearError = useCallback(() => setError(null), []);
-
-  /* ── Bootstrap ── */
   useEffect(() => {
-    checkAuth();
-  }, []);
+    if (query.data && !hydrated) {
+      setState(query.data);
+      setHydrated(true);
+    }
+  }, [query.data, hydrated]);
 
-  useEffect(() => {
-    const subscription = Linking.addEventListener("url", handleDeepLink);
-    return () => subscription.remove();
-  }, []);
-
-  async function checkAuth() {
+  const persist = useCallback(async (next: AuthState) => {
+    setState(next);
     try {
-      const accessToken = await SecureStore.getItemAsync("access_token");
-      if (!accessToken) {
-        const refreshTokenStored = await SecureStore.getItemAsync("refresh_token");
-        if (refreshTokenStored) await refreshToken();
-        return;
-      }
-      const decoded = userFromToken(accessToken);
-      if (decoded) {
-        setUser(decoded);
-      } else {
-        await refreshToken();
-      }
-    } catch (err) {
-      console.error("[Warmly] auth check failed:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  /* ── Deep link callback ── */
-  async function handleDeepLink(event: { url: string }) {
-    try {
-      const url = new URL(event.url);
-      if (url.pathname === "/auth/callback") {
-        const code = url.searchParams.get("code");
-        if (code) await exchangeCode(code);
-      }
-    } catch (err) {
-      console.error("[Warmly] deep link failed:", err);
-      setError(err instanceof Error ? err.message : "Sign in failed");
-    }
-  }
-
-  /* ── Sign in ── */
-  const signIn = useCallback(async (provider: "google" | "apple") => {
-    setIsSigningIn(true);
-    setError(null);
-    try {
-      const verifier = generateCodeVerifier();
-      const challenge = await generateCodeChallenge(verifier);
-      codeVerifierRef.current = verifier;
-
-      const isWeb = Platform.OS === "web";
-      const target = "rn";
-      const env = isWeb ? "preview" : "native";
-
-      const response = await fetch(`${AUTH_URL}/oauth/initiate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          app_key: APP_KEY,
-          provider,
-          code_challenge: challenge,
-          target,
-          env,
-        }),
-      });
-
-      if (!response.ok) {
-        codeVerifierRef.current = null;
-        const body = await response.json().catch(() => ({}));
-        const message = body.error || `Sign in failed (${response.status})`;
-        console.error(`[Warmly] auth initiate failed (${response.status}):`, body);
-        setError(message);
-        return;
-      }
-
-      const { auth_url } = await response.json();
-
-      if (isWeb) {
-        const popup = window.open(auth_url, "_blank", "width=500,height=650");
-        await new Promise<void>((resolve, reject) => {
-          const onMessage = (event: MessageEvent) => {
-            if (event.data?.type !== "rork_auth_callback") return;
-            window.removeEventListener("message", onMessage);
-            clearInterval(pollTimer);
-            const code = event.data.code;
-            if (code) {
-              exchangeCode(code).then(resolve, reject);
-            } else {
-              reject(new Error("No code received"));
-            }
-          };
-          window.addEventListener("message", onMessage);
-          const pollTimer = setInterval(() => {
-            if (popup?.closed) {
-              clearInterval(pollTimer);
-              window.removeEventListener("message", onMessage);
-              codeVerifierRef.current = null;
-              resolve();
-            }
-          }, 500);
-        });
-      } else {
-        const result = await WebBrowser.openAuthSessionAsync(
-          auth_url,
-          `rork-${PROJECT_ID}://auth/callback`
-        );
-        if (result.type === "success") {
-          const url = new URL(result.url);
-          const code = url.searchParams.get("code");
-          if (code) await exchangeCode(code);
-        }
-      }
-    } catch (err) {
-      console.error("[Warmly] sign in failed:", err);
-      setError(err instanceof Error ? err.message : "Sign in failed");
-    } finally {
-      setIsSigningIn(false);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch (e) {
+      console.log("[Warmly] failed to persist auth", e);
     }
   }, []);
 
-  /* ── Exchange code for tokens ── */
-  async function exchangeCode(code: string) {
-    const verifier = codeVerifierRef.current;
-    if (!verifier) return;
-    codeVerifierRef.current = null;
+  const completeOnboarding = useCallback(() => {
+    void persist({ ...state, hasOnboarded: true });
+  }, [state, persist]);
 
-    const response = await fetch(`${AUTH_URL}/oauth/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ app_key: APP_KEY, code, code_verifier: verifier }),
-    });
+  const signIn = useCallback(
+    (provider: User["provider"], overrides?: Partial<User>) => {
+      const user: User = {
+        id: `u_${Date.now()}`,
+        name: overrides?.name ?? "Alex Morgan",
+        email: overrides?.email ?? "alex@warmly.app",
+        photo: overrides?.photo,
+        provider,
+      };
+      void persist({ hasOnboarded: true, user });
+    },
+    [persist]
+  );
 
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
-      const message = body.error || `Token exchange failed (${response.status})`;
-      console.error(`[Warmly] token exchange failed (${response.status}):`, body);
-      setError(message);
-      return;
-    }
+  const signOut = useCallback(() => {
+    void persist({ hasOnboarded: state.hasOnboarded, user: null });
+  }, [state.hasOnboarded, persist]);
 
-    const { access_token, refresh_token, user: userData } = await response.json();
-    await SecureStore.setItemAsync("access_token", access_token);
-    await SecureStore.setItemAsync("refresh_token", refresh_token);
-    setUser(userData);
-  }
-
-  /* ── Refresh ── */
-  async function refreshToken() {
-    const storedRefreshToken = await SecureStore.getItemAsync("refresh_token");
-    if (!storedRefreshToken) {
-      setUser(null);
-      return;
-    }
-    const response = await fetch(`${AUTH_URL}/oauth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ app_key: APP_KEY, refresh_token: storedRefreshToken }),
-    });
-    if (!response.ok) {
-      await signOut();
-      return;
-    }
-    const { access_token } = await response.json();
-    await SecureStore.setItemAsync("access_token", access_token);
-    setUser(userFromToken(access_token));
-  }
-
-  /* ── Sign out ── */
-  const signOut = useCallback(async () => {
-    await SecureStore.deleteItemAsync("access_token");
-    await SecureStore.deleteItemAsync("refresh_token");
-    setUser(null);
-  }, []);
-
-  return { user, isLoading, isSigningIn, error, signIn, signOut, clearError };
+  return {
+    isLoading: query.isLoading || !hydrated,
+    hasOnboarded: state.hasOnboarded,
+    user: state.user,
+    completeOnboarding,
+    signIn,
+    signOut,
+  };
 });

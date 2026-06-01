@@ -21,10 +21,9 @@ import {
   Users,
   Bell,
 } from "lucide-react-native";
-import * as SecureStore from "expo-secure-store";
+import { useAuth } from "@/providers/AuthProvider";
 import { Colors } from "@/constants/colors";
 
-const ONBOARDED_KEY = "warmly:has_onboarded";
 const { width } = Dimensions.get("window");
 
 interface Slide {
@@ -74,6 +73,8 @@ export default function Onboarding() {
   const [index, setIndex] = useState<number>(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const listRef = useRef<FlatList<Slide>>(null);
+  const { completeOnboarding } = useAuth();
+
   const onMomentumEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const i = Math.round(e.nativeEvent.contentOffset.x / width);
     setIndex(i);
@@ -86,13 +87,13 @@ export default function Onboarding() {
     if (index < SLIDES.length - 1) {
       listRef.current?.scrollToIndex({ index: index + 1, animated: true });
     } else {
-      SecureStore.setItemAsync(ONBOARDED_KEY, "true");
+      completeOnboarding();
       router.replace("/login");
     }
   };
 
   const skip = () => {
-    SecureStore.setItemAsync(ONBOARDED_KEY, "true");
+    completeOnboarding();
     router.replace("/login");
   };
 

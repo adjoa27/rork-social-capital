@@ -1,15 +1,10 @@
 {
-  "$schema": "https://rork.com/schema/rork.json",
   "apps": [
     {
       "name": "Warmly",
       "path": "expo",
       "framework": "react-native"
-    },
-    {
-      "name": "Backend",
-      "path": "backend",
-      "framework": "supabase"
     }
-  ]
+  ],
+  "$schema": "https://rork.com/schema/rork.json"
 }

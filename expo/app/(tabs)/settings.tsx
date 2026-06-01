@@ -55,13 +55,13 @@ export default function SettingsScreen() {
       <View style={styles.profile}>
         <Avatar
           name={user?.name ?? "You"}
-          photo={user?.picture}
+          photo={user?.photo}
           size={64}
         />
         <View style={{ flex: 1 }}>
           <Text style={styles.profileName}>{user?.name ?? "Alex Morgan"}</Text>
           <Text style={styles.profileMeta}>
-            {user?.email ?? "alex@warmly.app"}
+            {user?.email ?? "alex@warmly.app"} · via {user?.provider}
           </Text>
           <View style={styles.profileStats}>
             <View style={styles.pill}>

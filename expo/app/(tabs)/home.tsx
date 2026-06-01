@@ -91,7 +91,7 @@ export default function HomeScreen() {
           onPress={() => router.push("/(tabs)/settings")}
           hitSlop={8}
         >
-          <Avatar name={user?.name ?? "You"} photo={user?.picture} size={44} />
+          <Avatar name={user?.name ?? "You"} photo={user?.photo} size={44} />
         </Pressable>
       </View>
 
