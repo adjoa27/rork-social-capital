@@ -1,5 +1,6 @@
 import {
   createContext,
+  createElement,
   useContext,
   useEffect,
   useRef,
@@ -315,9 +316,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
-  return (
-    <AuthContext.Provider
-      value={{
+  return createElement(
+    AuthContext.Provider,
+    {
+      value: {
         user,
         isLoading,
         isSigningIn,
@@ -326,10 +328,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithEmail,
         signOut,
         clearError,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+      },
+    },
+    children,
   );
 }
 
