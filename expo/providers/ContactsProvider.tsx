@@ -2,7 +2,7 @@ import createContextHook from "@nkzw/create-context-hook";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, hasValidJwt } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Contact,
@@ -86,8 +86,11 @@ async function loadContacts(userId: string | null): Promise<Contact[]> {
       user_id: userId,
       id: `${userId}_${c.id}`,
     }));
-    // Insert seed data into Supabase
-    const inserts = seeded.map(
+
+    // Only seed Supabase when the user has a real JWT (OAuth sign-in).
+    // Email/preview sign-ins don't have a valid JWT and can't satisfy RLS.
+    if (await hasValidJwt()) {
+      const inserts = seeded.map(
       ({
         id,
         name,
@@ -134,12 +137,13 @@ async function loadContacts(userId: string | null): Promise<Contact[]> {
       }),
     );
 
-    const { error: insertErr } = await supabase
-      .from("contacts")
-      .insert(inserts);
+      const { error: insertErr } = await supabase
+        .from("contacts")
+        .insert(inserts);
 
-    if (insertErr) {
-      console.error("[SocialCapital] Seed insert failed:", insertErr.message);
+      if (insertErr) {
+        console.error("[SocialCapital] Seed insert failed:", insertErr.message);
+      }
     }
 
     return seeded;

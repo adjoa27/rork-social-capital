@@ -11,6 +11,12 @@ function isJwt(token: string | null): token is string {
   return token.split(".").length === 3;
 }
 
+/** Check whether the current session has a valid JWT for Supabase RLS. */
+export async function hasValidJwt(): Promise<boolean> {
+  const token = await SecureStore.getItemAsync("access_token");
+  return isJwt(token);
+}
+
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: false,
@@ -26,6 +32,10 @@ export async function syncProfile(user: {
   email?: string;
   name?: string;
 }) {
+  // Only sync to Supabase when the user has a real JWT (OAuth sign-in).
+  // Email/preview sign-ins store a local JSON pseudo-token that can't satisfy RLS.
+  if (!(await hasValidJwt())) return;
+
   const { error } = await supabase.from("profiles").upsert(
     { id: user.id, email: user.email, name: user.name },
     { onConflict: "id" },

@@ -1,9 +1,25 @@
-# Wire Upgrade button to open paywall
+# Fix RLS violations for profiles and contacts tables
 
-**What needs to happen:**
 
-- [x] The "Upgrade" button in the Settings screen (the purple "Social Capital Pro" card) currently does nothing when tapped
-- [x] Add navigation so tapping it opens the paywall screen (`/paywall`) which already exists with subscription packages, features list, and purchase flow
+## Problem
 
-**RevenueCat project ID:**
-- You mentioned the project ID is `proj08fab602` — this is a reference identifier in RevenueCat's dashboard. If the current API keys in the environment are already pointing to that project, no changes are needed. If you need to update the API keys, I can help with that separately.
+Two errors appear at runtime:
+
+1. `Failed to sync profile: new row violates row-level security policy for table "profiles"`
+2. `Seed insert failed: new row violates row-level security policy for table "contacts"`
+
+These happen because the app tries to write to Supabase even when the user doesn't have a real JWT token (e.g., email sign-in in preview mode). Without a valid JWT, Supabase treats the request as anonymous, and the RLS policies block it.
+
+## Fix
+
+### Code changes (2 files)
+
+- **`expo/lib/supabase.ts`** — Update `syncProfile` to skip the Supabase upsert when no valid JWT access token is available (email/anonymous users). Silently return instead of hitting Supabase and triggering the RLS error.
+
+- **`expo/providers/ContactsProvider.tsx`** — Update `loadContacts` to skip Supabase seed inserts when no valid JWT access token is available. The local cache and seed data already work correctly for unauthenticated users — the Supabase write should only be attempted when the user is fully authenticated with a real token.
+
+### What stays the same
+
+- Authenticated users with real JWT tokens (Google/Apple OAuth) continue to sync their profile and contacts to Supabase as before
+- Local AsyncStorage cache and seed data still work for email/anonymous users
+- No visual changes — the errors just stop appearing in logs
