@@ -5,7 +5,7 @@ import * as SecureStore from "expo-secure-store";
 import { useAuth } from "@/providers/AuthProvider";
 import { Colors } from "@/constants/colors";
 
-const ONBOARDED_KEY = "socialcapital:has_onboarded";
+const ONBOARDED_KEY = "warmly:has_onboarded";
 
 export default function IndexRedirect() {
   const { isLoading, user } = useAuth();

@@ -2,7 +2,7 @@
   "$schema": "https://rork.com/schema/rork.json",
   "apps": [
     {
-      "name": "Social Capital",
+      "name": "Warmly",
       "path": "expo",
       "framework": "react-native"
     },
@@ -10,11 +10,6 @@
       "name": "Backend",
       "path": "backend",
       "framework": "supabase"
-    },
-    {
-      "name": "Social Capital Legal",
-      "path": "web-warmly-legal",
-      "framework": "web"
     }
   ]
 }

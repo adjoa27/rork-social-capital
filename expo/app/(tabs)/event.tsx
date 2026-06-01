@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import {
+  Alert,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -11,6 +13,7 @@ import {
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import * as Speech from "expo-speech";
 import {
   Mic,
   ScanLine,
@@ -44,12 +47,12 @@ export default function EventScreen() {
     setActive(true);
   };
 
-  const quickAdd = async () => {
+  const quickAdd = () => {
     if (!quickName.trim()) return;
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
-    const c = await addContact({
+    const c = addContact({
       name: quickName.trim(),
       notes: [
         `Met at ${eventName}`,
@@ -71,9 +74,7 @@ export default function EventScreen() {
         },
       ],
     });
-    if (c) {
-      setAdded([c.id, ...added]);
-    }
+    setAdded([c.id, ...added]);
     setQuickName("");
     setQuickNote("");
   };
@@ -95,7 +96,7 @@ export default function EventScreen() {
           <Text style={styles.eyebrow}>Conference mode</Text>
           <Text style={styles.title}>Capture every connection</Text>
           <Text style={styles.subtitle}>
-            Built for fast networking. Scan, tap, or speak — Social Capital remembers
+            Built for fast networking. Scan, tap, or speak — Warmly remembers
             the rest.
           </Text>
         </View>
@@ -157,7 +158,20 @@ export default function EventScreen() {
               <QuickTile
                 label="Voice note"
                 icon={<Mic size={22} color={Colors.text} strokeWidth={2.4} />}
-                onPress={() => router.push("/voice-note")}
+                onPress={() => {
+                  if (Platform.OS !== "web") {
+                    Haptics.selectionAsync().catch(() => {});
+                    Speech.speak(
+                      "Voice notes are available when you install Warmly on your device. Record quick voice memos after every conversation to help the AI remember context.",
+                      { rate: 0.85 }
+                    );
+                  } else {
+                    Alert.alert(
+                      "Install on device",
+                      "Voice notes are available when you install Warmly on your device via the Rork App."
+                    );
+                  }
+                }}
               />
               <QuickTile
                 label="Manual add"

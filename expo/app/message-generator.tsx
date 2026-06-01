@@ -18,7 +18,6 @@ import * as SMS from "expo-sms";
 import * as Speech from "expo-speech";
 import {
   Copy,
-  Linkedin,
   Mail,
   MessageSquare,
   RefreshCw,
@@ -130,7 +129,7 @@ export default function MessageGenerator() {
       });
       setDraft(result.text.trim());
     } catch (err) {
-      console.error("[Social Capital] AI generation failed:", err);
+      console.error("[Warmly] AI generation failed:", err);
       Alert.alert(
         "Couldn't generate message",
         "Please check your connection and try again."
@@ -376,6 +375,11 @@ export default function MessageGenerator() {
       </ScrollView>
     </View>
   );
+}
+
+function Linkedin(props: { size: number; color: string; strokeWidth: number }) {
+  const { Linkedin: Icon } = require("lucide-react-native") as typeof import("lucide-react-native");
+  return <Icon {...props} />;
 }
 
 function MemoryBullet({ label, value }: { label: string; value: string }) {

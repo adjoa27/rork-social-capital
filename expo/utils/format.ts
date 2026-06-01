@@ -1,4 +1,4 @@
-/** Formatting helpers for Social Capital. */
+/** Formatting helpers for Warmly. */
 
 export function relativeTime(iso: string): string {
   const date = new Date(iso);

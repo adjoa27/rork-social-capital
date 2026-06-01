@@ -98,7 +98,7 @@ export default function AIScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View>
-        <Text style={styles.eyebrow}>Social Capital Assistant</Text>
+        <Text style={styles.eyebrow}>Warmly Assistant</Text>
         <Text style={styles.title}>Your daily nudges</Text>
         <Text style={styles.subtitle}>
           AI-curated reminders so the right relationships stay warm.
@@ -124,7 +124,7 @@ export default function AIScreen() {
           </View>
           <Text style={styles.heroTitle}>Generate a message</Text>
           <Text style={styles.heroBody}>
-            Pick a person, a tone, and a channel. Social Capital drafts a personalized
+            Pick a person, a tone, and a channel. Warmly drafts a personalized
             note based on what you know.
           </Text>
           <View style={styles.heroOrbA} />

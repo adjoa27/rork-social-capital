@@ -1,5 +1,5 @@
 /**
- * Seed data for Social Capital. Used to populate the app with realistic relationships
+ * Seed data for Warmly. Used to populate the app with realistic relationships
  * so the experience feels alive on first launch.
  */
 

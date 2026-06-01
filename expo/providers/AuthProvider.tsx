@@ -105,7 +105,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         await refreshToken();
       }
     } catch (err) {
-      console.error("[Social Capital] auth check failed:", err);
+      console.error("[Warmly] auth check failed:", err);
     } finally {
       setIsLoading(false);
     }
@@ -120,7 +120,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         if (code) await exchangeCode(code);
       }
     } catch (err) {
-      console.error("[Social Capital] deep link failed:", err);
+      console.error("[Warmly] deep link failed:", err);
       setError(err instanceof Error ? err.message : "Sign in failed");
     }
   }
@@ -154,7 +154,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         codeVerifierRef.current = null;
         const body = await response.json().catch(() => ({}));
         const message = body.error || `Sign in failed (${response.status})`;
-        console.error(`[Social Capital] auth initiate failed (${response.status}):`, body);
+        console.error(`[Warmly] auth initiate failed (${response.status}):`, body);
         setError(message);
         return;
       }
@@ -197,7 +197,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
         }
       }
     } catch (err) {
-      console.error("[Social Capital] sign in failed:", err);
+      console.error("[Warmly] sign in failed:", err);
       setError(err instanceof Error ? err.message : "Sign in failed");
     } finally {
       setIsSigningIn(false);
@@ -219,7 +219,7 @@ export const [AuthProvider, useAuth] = createContextHook((): AuthContextType => 
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
       const message = body.error || `Token exchange failed (${response.status})`;
-      console.error(`[Social Capital] token exchange failed (${response.status}):`, body);
+      console.error(`[Warmly] token exchange failed (${response.status}):`, body);
       setError(message);
       return;
     }

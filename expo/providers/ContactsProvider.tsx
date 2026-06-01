@@ -1,6 +1,6 @@
 import createContextHook from "@nkzw/create-context-hook";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Alert } from "react-native";
 import { supabase } from "@/lib/supabase";
 import { useAuth, type AuthUser } from "@/providers/AuthProvider";
@@ -103,7 +103,7 @@ async function seedContacts(userId: string): Promise<Contact[]> {
 
   const { error } = await supabase.from("contacts").insert(rows);
   if (error) {
-    console.error("[Social Capital] seed failed:", error.message);
+    console.error("[Warmly] seed failed:", error.message);
     return [];
   }
 
@@ -128,7 +128,7 @@ async function fetchContacts(user: AuthUser | null): Promise<Contact[]> {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("[Social Capital] fetch failed:", error.message);
+    console.error("[Warmly] fetch failed:", error.message);
     return [];
   }
 
@@ -152,7 +152,7 @@ async function syncProfile(user: AuthUser) {
     },
     { onConflict: "id" }
   );
-  if (error) console.error("[Social Capital] profile sync failed:", error.message);
+  if (error) console.error("[Warmly] profile sync failed:", error.message);
 }
 
 export const [ContactsProvider, useContacts] = createContextHook(() => {
@@ -169,11 +169,11 @@ export const [ContactsProvider, useContacts] = createContextHook(() => {
     enabled: !!user,
   });
 
-  useEffect(() => {
+  useMemo(() => {
     if (user) syncProfile(user);
   }, [user]);
 
-  useEffect(() => {
+  useMemo(() => {
     if (query.data && !hydrated) {
       setContacts(query.data);
       setHydrated(true);
@@ -213,14 +213,14 @@ export const [ContactsProvider, useContacts] = createContextHook(() => {
         socialUpdates: input.socialUpdates ?? [],
         linkedinConnected: input.linkedinConnected ?? false,
         interactions: input.interactions ?? [
-          { id: `i_${Date.now()}`, type: "note", title: "Added to Social Capital", date: now },
+          { id: `i_${Date.now()}`, type: "note", title: "Added to Warmly", date: now },
         ],
       };
 
       const { error } = await supabase.from("contacts").insert(contactToRow(newContact, user.id));
       if (error) {
         Alert.alert("Error", "Could not save contact. Please try again.");
-        console.error("[Social Capital] insert failed:", error.message);
+        console.error("[Warmly] insert failed:", error.message);
         return null;
       }
       invalidate();
@@ -241,7 +241,7 @@ export const [ContactsProvider, useContacts] = createContextHook(() => {
         .update(contactToRow(merged, user.id))
         .eq("id", id);
       if (error) {
-        console.error("[Social Capital] update failed:", error.message);
+        console.error("[Warmly] update failed:", error.message);
         return;
       }
       invalidate();
@@ -254,7 +254,7 @@ export const [ContactsProvider, useContacts] = createContextHook(() => {
     async (id: string) => {
       const { error } = await supabase.from("contacts").delete().eq("id", id);
       if (error) {
-        console.error("[Social Capital] delete failed:", error.message);
+        console.error("[Warmly] delete failed:", error.message);
         return;
       }
       invalidate();
@@ -282,7 +282,7 @@ export const [ContactsProvider, useContacts] = createContextHook(() => {
           interactions: [full, ...existing.interactions],
         })
         .eq("id", id);
-      if (error) console.error("[Social Capital] addInteraction failed:", error.message);
+      if (error) console.error("[Warmly] addInteraction failed:", error.message);
     },
     [user, contacts]
   );
@@ -298,7 +298,7 @@ export const [ContactsProvider, useContacts] = createContextHook(() => {
         .from("contacts")
         .update({ notes: [note, ...existing.notes] })
         .eq("id", id);
-      if (error) console.error("[Social Capital] addNote failed:", error.message);
+      if (error) console.error("[Warmly] addNote failed:", error.message);
     },
     [user, contacts]
   );

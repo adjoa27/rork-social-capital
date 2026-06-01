@@ -11,8 +11,6 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { ContactsProvider } from "@/providers/ContactsProvider";
-import { PurchasesProvider } from "@/providers/PurchasesProvider";
-import { LinkedInProvider } from "@/providers/LinkedInProvider";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -49,10 +47,6 @@ function RootLayoutNav() {
       <Stack.Screen name="add-contact" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
       <Stack.Screen name="message-generator" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
       <Stack.Screen name="scan-card" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-      <Stack.Screen name="paywall" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-      <Stack.Screen name="subscription" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-      <Stack.Screen name="linkedin-connect" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-      <Stack.Screen name="voice-note" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
     </Stack>
   );
 }
@@ -68,18 +62,14 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <PurchasesProvider>
-          <ContactsProvider>
-            <LinkedInProvider>
-              <SafeAreaProvider>
-                <GestureHandlerRootView style={{ flex: 1 }}>
-                  <StatusBar style="dark" />
-                  <RootLayoutNav />
-                </GestureHandlerRootView>
-              </SafeAreaProvider>
-            </LinkedInProvider>
-          </ContactsProvider>
-        </PurchasesProvider>
+        <ContactsProvider>
+          <SafeAreaProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <StatusBar style="dark" />
+              <RootLayoutNav />
+            </GestureHandlerRootView>
+          </SafeAreaProvider>
+        </ContactsProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

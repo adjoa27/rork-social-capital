@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "Social Capital",
+    "name": "Warmly",
     "slug": "3j2l2gi7t3xxp5is76yzo",
-    "version": "1.0.1",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "rork-3j2l2gi7t3xxp5is76yzo",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
@@ -15,19 +15,14 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.rork.3j2l2gi7t3xxp5is76yzo",
-      "infoPlist": {
-        "NSCameraUsageDescription": "Allow Social Capital to access your camera to scan business cards.",
-        "NSMicrophoneUsageDescription": "Allow Social Capital to access your microphone for voice notes."
-      }
+      "bundleIdentifier": "app.rork.3j2l2gi7t3xxp5is76yzo"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.3j2l2gi7t3xxp5is76yzo",
-      "permissions": ["CAMERA", "RECORD_AUDIO"]
+      "package": "app.rork.3j2l2gi7t3xxp5is76yzo"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -41,8 +36,7 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-mail-composer",
-      "expo-secure-store"
+      "expo-mail-composer"
     ],
     "experiments": {
       "typedRoutes": true

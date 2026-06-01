@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import {
   Alert,
-  Linking,
   Modal,
   Platform,
   Pressable,
@@ -16,7 +15,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Clipboard from "expo-clipboard";
 import * as Notifications from "expo-notifications";
 import * as Speech from "expo-speech";
-import * as Haptics from "expo-haptics";
 import {
   ArrowLeft,
   Bell,
@@ -46,7 +44,6 @@ import { Avatar } from "@/components/Avatar";
 import { WarmthMeter } from "@/components/WarmthIndicator";
 import { Colors } from "@/constants/colors";
 import { useContactById, useContacts } from "@/providers/ContactsProvider";
-import { useLinkedIn } from "@/providers/LinkedInProvider";
 import {
   Interaction,
   InteractionType,
@@ -59,10 +56,7 @@ export default function ContactDetail() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const contact = useContactById(id);
-  const { deleteContact, addNote } = useContacts();
-  const { isConnected } = useLinkedIn();
-  const [showNoteInput, setShowNoteInput] = useState<boolean>(false);
-  const [newNote, setNewNote] = useState<string>("");
+  const { deleteContact } = useContacts();
 
   if (!contact) {
     return (
@@ -73,30 +67,6 @@ export default function ContactDetail() {
   }
 
   const days = daysSince(contact.lastInteraction);
-  const connected = isConnected(contact.id);
-
-  const handleCall = () => {
-    if (!contact.phone) return;
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    }
-    Linking.openURL(`tel:${contact.phone}`).catch(() => {
-      Alert.alert("Error", "Unable to make a call on this device.");
-    });
-  };
-
-  const handleAddNote = () => {
-    if (!newNote.trim()) {
-      setShowNoteInput(false);
-      return;
-    }
-    addNote(contact.id, newNote.trim());
-    setNewNote("");
-    setShowNoteInput(false);
-    if (Platform.OS !== "web") {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    }
-  };
 
   return (
     <View style={[styles.container]}>
@@ -186,7 +156,6 @@ export default function ContactDetail() {
             <ActionBtn
               label="Call"
               icon={<Phone size={18} color={Colors.text} strokeWidth={2.4} />}
-              onPress={handleCall}
             />
           ) : null}
           <RemindBtn contactId={contact.id} />
@@ -287,57 +256,18 @@ export default function ContactDetail() {
         <View style={styles.card}>
           <View style={styles.cardHead}>
             <Text style={styles.cardTitle}>Notes</Text>
-            <Pressable
-              hitSlop={8}
-              onPress={() => setShowNoteInput(true)}
-            >
+            <Pressable hitSlop={8}>
               <Plus size={18} color={Colors.text} strokeWidth={2.4} />
             </Pressable>
           </View>
-          {showNoteInput ? (
-            <View style={styles.noteInputWrap}>
-              <TextInput
-                style={styles.noteInput}
-                value={newNote}
-                onChangeText={setNewNote}
-                placeholder="Add a note about this contact…"
-                placeholderTextColor={Colors.textMuted}
-                multiline
-                autoFocus
-                onSubmitEditing={handleAddNote}
-              />
-              <View style={styles.noteInputActions}>
-                <Pressable
-                  onPress={() => {
-                    setShowNoteInput(false);
-                    setNewNote("");
-                  }}
-                  style={styles.noteCancel}
-                >
-                  <Text style={styles.noteCancelText}>Cancel</Text>
-                </Pressable>
-                <Pressable
-                  onPress={handleAddNote}
-                  style={({ pressed }) => [
-                    styles.noteSave,
-                    !newNote.trim() && { opacity: 0.5 },
-                    pressed && { opacity: 0.8 },
-                  ]}
-                  disabled={!newNote.trim()}
-                >
-                  <Text style={styles.noteSaveText}>Save</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
-          <View style={{ gap: 8, marginTop: showNoteInput ? 0 : 8 }}>
+          <View style={{ gap: 8, marginTop: 8 }}>
             {contact.notes.map((n, i) => (
               <View key={`${i}`} style={styles.note}>
                 <StickyNote size={14} color={Colors.goldDeep} strokeWidth={2.4} />
                 <Text style={styles.noteText}>{n}</Text>
               </View>
             ))}
-            {contact.notes.length === 0 && !showNoteInput ? (
+            {contact.notes.length === 0 ? (
               <Text style={styles.empty}>No notes yet.</Text>
             ) : null}
           </View>
@@ -360,7 +290,7 @@ export default function ContactDetail() {
               ))}
             </View>
           ) : (
-            <EmptySocialState contactId={contact.id} />
+            <EmptySocialState />
           )}
         </View>
 
@@ -772,7 +702,7 @@ function SocialUpdateRow({ update }: { update: SocialUpdate }) {
   );
 }
 
-function EmptySocialState({ contactId }: { contactId: string }) {
+function EmptySocialState() {
   return (
     <View style={styles.emptySocial}>
       <View style={styles.emptySocialIcon}>
@@ -790,12 +720,6 @@ function EmptySocialState({ contactId }: { contactId: string }) {
           styles.emptySocialBtn,
           pressed && { opacity: 0.8 },
         ]}
-        onPress={() =>
-          router.push({
-            pathname: "/linkedin-connect",
-            params: { contactId },
-          })
-        }
       >
         <Linkedin size={16} color="#FFFFFF" strokeWidth={2.4} />
         <Text style={styles.emptySocialBtnText}>Connect LinkedIn</Text>
@@ -1232,46 +1156,6 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 13,
     paddingVertical: 8,
-  },
-  noteInputWrap: {
-    marginTop: 10,
-    gap: 8,
-  },
-  noteInput: {
-    backgroundColor: Colors.backgroundAlt,
-    padding: 14,
-    borderRadius: 14,
-    fontSize: 14,
-    color: Colors.text,
-    minHeight: 70,
-    textAlignVertical: "top",
-  },
-  noteInputActions: {
-    flexDirection: "row",
-    gap: 8,
-    justifyContent: "flex-end",
-  },
-  noteCancel: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: Colors.backgroundAlt,
-  },
-  noteCancelText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.textSecondary,
-  },
-  noteSave: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: Colors.text,
-  },
-  noteSaveText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#FFFFFF",
   },
   tlRow: {
     flexDirection: "row",
