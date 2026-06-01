@@ -43,6 +43,22 @@ export interface User {
   provider: "google" | "apple" | "email";
 }
 
+function authErrorMessage(body: unknown, fallback: string): string {
+  if (!body || typeof body !== "object") return fallback;
+
+  const record = body as Record<string, unknown>;
+  const rawMessage = record.error ?? record.message ?? record.detail;
+
+  if (typeof rawMessage === "string") return rawMessage;
+  if (rawMessage && typeof rawMessage === "object") {
+    const nested = rawMessage as Record<string, unknown>;
+    const nestedMessage = nested.message ?? nested.error ?? nested.detail;
+    if (typeof nestedMessage === "string") return nestedMessage;
+  }
+
+  return fallback;
+}
+
 function userFromToken(token: string): User | null {
   try {
     const parts = token.split(".");
@@ -72,8 +88,8 @@ interface AuthContextType {
   isLoading: boolean;
   isSigningIn: boolean;
   error: string | null;
-  signIn: (provider: "google" | "apple") => Promise<void>;
-  signInWithEmail: (email: string) => Promise<void>;
+  signIn: (provider: "google" | "apple") => Promise<boolean>;
+  signInWithEmail: (email: string) => Promise<boolean>;
   signOut: () => Promise<void>;
   clearError: () => void;
 }
@@ -146,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function signIn(provider: "google" | "apple") {
+  async function signIn(provider: "google" | "apple"): Promise<boolean> {
     setIsSigningIn(true);
     setError(null);
     try {
@@ -167,17 +183,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           code_challenge: challenge,
           target,
           env,
+          app_path: "expo",
         }),
       });
 
       if (!response.ok) {
         codeVerifierRef.current = null;
         const body = await response.json().catch(() => ({}));
-        const message =
-          body.error || `Sign in failed (${response.status})`;
+        const message = authErrorMessage(
+          body,
+          `Sign in failed (${response.status})`,
+        );
         console.error(`Auth initiate failed (${response.status}):`, body);
         setError(message);
-        return;
+        return false;
       }
 
       const { auth_url } = await response.json();
@@ -222,16 +241,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
       }
+      return true;
     } catch (err) {
       console.error("Sign in failed:", err);
       setError(err instanceof Error ? err.message : "Sign in failed");
+      return false;
     } finally {
       setIsSigningIn(false);
     }
   }
 
   /** Email "sign in" — for demo/preview, creates a local pseudo-session. */
-  async function signInWithEmail(email: string) {
+  async function signInWithEmail(email: string): Promise<boolean> {
     setIsSigningIn(true);
     setError(null);
     try {
@@ -246,8 +267,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         JSON.stringify(pseudoUser),
       );
       setUser(pseudoUser);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign in failed");
+      return false;
     } finally {
       setIsSigningIn(false);
     }
@@ -266,8 +289,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      const message =
-        body.error || `Token exchange failed (${response.status})`;
+      const message = authErrorMessage(
+        body,
+        `Token exchange failed (${response.status})`,
+      );
       console.error(`Token exchange failed (${response.status}):`, body);
       setError(message);
       return;

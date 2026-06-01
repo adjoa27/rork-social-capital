@@ -28,14 +28,13 @@ export default function Login() {
         () => {},
       );
     }
-    if (provider === "email") {
-      const addr = email.trim();
-      if (!addr) return;
-      await signInWithEmail(addr);
-    } else {
-      await signIn(provider);
+    const didSignIn = provider === "email"
+      ? await signInWithEmail(email.trim())
+      : await signIn(provider);
+
+    if (didSignIn) {
+      router.replace("/(tabs)/home");
     }
-    router.replace("/(tabs)/home");
   };
 
   return (
