@@ -5,13 +5,19 @@ import type { Database } from "@/src/integrations/supabase/types";
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 
+/** Supabase only accepts JWT access tokens. Rork preview/email sessions can be local JSON or opaque tokens. */
+function isJwt(token: string | null): token is string {
+  if (!token) return false;
+  return token.split(".").length === 3;
+}
+
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: false,
   },
   accessToken: async () => {
     const token = await SecureStore.getItemAsync("access_token");
-    return token ?? undefined;
+    return isJwt(token) ? token : undefined;
   },
 });
 
