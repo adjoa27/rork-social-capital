@@ -92,7 +92,10 @@ export default function SettingsScreen() {
             Unlimited AI drafts, voice notes & calendar sync.
           </Text>
         </View>
-        <Pressable style={styles.proCta}>
+        <Pressable
+          style={styles.proCta}
+          onPress={() => router.push("/paywall")}
+        >
           <Text style={styles.proCtaText}>Upgrade</Text>
         </Pressable>
         <View style={styles.proOrb} />
