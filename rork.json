@@ -1,9 +1,12 @@
 {
   "apps": [
     {
-      "name": "Warmly",
+      "name": "Social Capital",
       "path": "expo",
-      "framework": "react-native"
+      "framework": "react-native",
+      "settings": {
+        "displayName": "Social Capital"
+      }
     }
   ],
   "$schema": "https://rork.com/schema/rork.json"
