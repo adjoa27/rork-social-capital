@@ -55,16 +55,22 @@ export default function MessageGenerator() {
     [contacts, selectedId]
   );
 
-  const generate = () => {
+  const generate = async () => {
     if (!contact) return;
     setGenerating(true);
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
-    setTimeout(() => {
+    try {
+      const result = await generateAIDraft(contact, tone, channel);
+      setDraft(result);
+    } catch (err) {
+      console.error("[SocialCapital] AI generation failed:", err);
+      // Fallback to template-based draft
       setDraft(composeDraft(contact, tone, channel));
+    } finally {
       setGenerating(false);
-    }, 700);
+    }
   };
 
   const copyToClipboard = async () => {
@@ -406,6 +412,95 @@ function MemoryBullet({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** Call the Rork AI proxy to generate a personalized outreach message. */
+async function generateAIDraft(
+  contact: Contact,
+  tone: ToneId,
+  channel: ChannelId,
+): Promise<string> {
+  const TOOLKIT_URL = process.env.EXPO_PUBLIC_TOOLKIT_URL!;
+  const SECRET_KEY = process.env.EXPO_PUBLIC_RORK_TOOLKIT_SECRET_KEY!;
+
+  const first = contact.name.split(" ")[0];
+  const days = daysSince(contact.lastInteraction);
+
+  const toneDescriptions: Record<ToneId, string> = {
+    casual: "friendly and low-key, like texting a friend",
+    professional: "polished and respectful, suitable for business",
+    friendly: "warm and personal, like reaching out to someone you care about",
+    founder: "direct and peer-to-peer, founder energy",
+    investor: "confident and metric-driven, appropriate for investor updates",
+    reconnect: "warm re-engagement after a long gap, acknowledges the time that passed",
+  };
+
+  const channelDesc =
+    channel === "email"
+      ? "email (include a subject line starting with 'Subject: ')"
+      : channel === "linkedin"
+        ? "LinkedIn message (professional but warm)"
+        : "short text message (keep it concise for SMS)";
+
+  const notesContext =
+    contact.notes.length > 0
+      ? `\nKey notes about ${first}:\n${contact.notes.map((n) => `- ${n}`).join("\n")}`
+      : "";
+
+  const metContext = contact.metAt
+    ? `\nWhere you met: ${contact.metAt}`
+    : "";
+
+  const systemPrompt = `You are a warm, thoughtful relationship assistant for Social Capital, an app that helps people maintain professional and personal relationships. You write personalized outreach messages that feel natural, human, and never generic or AI-sounding.
+
+Rules:
+- Never use phrases like "I hope this message finds you well"
+- Be specific based on the notes provided
+- Match the requested tone exactly
+- Keep it concise but warm
+- Reference shared context naturally
+- Sound like the user actually knows this person`;
+
+  const userPrompt = `Write a ${toneDescriptions[tone]} message to ${contact.name} (${contact.title ?? ""} at ${contact.company ?? ""}).
+
+Format: ${channelDesc}
+
+Context:
+- Last interaction: ${days} days ago${metContext}${notesContext}
+- Relationship warmth: ${contact.warmth}
+
+Write the message now (no preamble, just the message):`;
+
+  const response = await fetch(`${TOOLKIT_URL}/v2/vercel/v1/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${SECRET_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "anthropic/claude-sonnet-4",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: 500,
+      temperature: 0.8,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new Error(`AI API error (${response.status}): ${errorBody}`);
+  }
+
+  const data = (await response.json()) as {
+    choices: Array<{ message: { content: string } }>;
+  };
+
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Empty AI response");
+  return content.trim();
+}
+
+/** Template-based fallback when AI is unavailable. */
 function composeDraft(
   contact: Contact,
   tone: ToneId,

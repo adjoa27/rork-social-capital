@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,24 +13,28 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
-import {
-  Apple,
-  ArrowRight,
-  Heart,
-  Mail,
-} from "lucide-react-native";
-import { useAuth } from "@/providers/AuthProvider";
+import { Apple, ArrowRight, Heart, Mail } from "lucide-react-native";
+import { useAuth } from "@/hooks/useAuth";
 import { Colors } from "@/constants/colors";
 
 export default function Login() {
-  const { signIn } = useAuth();
+  const { signIn, signInWithEmail, isSigningIn, error, clearError } =
+    useAuth();
   const [email, setEmail] = useState<string>("");
 
-  const enter = (provider: "google" | "apple" | "email") => {
+  const enter = async (provider: "google" | "apple" | "email") => {
     if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(
+        () => {},
+      );
     }
-    signIn(provider, provider === "email" && email ? { email } : undefined);
+    if (provider === "email") {
+      const addr = email.trim();
+      if (!addr) return;
+      await signInWithEmail(addr);
+    } else {
+      await signIn(provider);
+    }
     router.replace("/(tabs)/home");
   };
 
@@ -64,71 +69,102 @@ export default function Login() {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@yourdomain.com"
-              placeholderTextColor={Colors.textMuted}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              style={styles.input}
-            />
-            <Pressable
-              onPress={() => enter("email")}
-              style={({ pressed }) => [
-                styles.primaryBtn,
-                pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
-              ]}
-            >
-              <LinearGradient
-                colors={["#1A2740", "#0F1B2D"]}
-                style={styles.primaryInner}
-              >
-                <Mail size={18} color="#FFFFFF" strokeWidth={2.4} />
-                <Text style={styles.primaryText}>Continue with email</Text>
-                <ArrowRight size={18} color="#FFFFFF" strokeWidth={2.4} />
-              </LinearGradient>
-            </Pressable>
+            {error ? (
+              <View style={styles.errorBanner}>
+                <Text style={styles.errorText}>{error}</Text>
+                <Pressable onPress={clearError} hitSlop={10}>
+                  <Text style={styles.errorDismiss}>✕</Text>
+                </Pressable>
+              </View>
+            ) : null}
 
-            <View style={styles.divider}>
-              <View style={styles.line} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.line} />
-            </View>
+            {isSigningIn ? (
+              <View style={styles.loadingWrap}>
+                <ActivityIndicator color={Colors.goldDeep} size="large" />
+                <Text style={styles.loadingText}>Signing in…</Text>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.label}>Email</Text>
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="you@yourdomain.com"
+                  placeholderTextColor={Colors.textMuted}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  style={styles.input}
+                />
+                <Pressable
+                  onPress={() => enter("email")}
+                  style={({ pressed }) => [
+                    styles.primaryBtn,
+                    pressed && {
+                      opacity: 0.9,
+                      transform: [{ scale: 0.99 }],
+                    },
+                  ]}
+                >
+                  <LinearGradient
+                    colors={["#1A2740", "#0F1B2D"]}
+                    style={styles.primaryInner}
+                  >
+                    <Mail size={18} color="#FFFFFF" strokeWidth={2.4} />
+                    <Text style={styles.primaryText}>
+                      Continue with email
+                    </Text>
+                    <ArrowRight
+                      size={18}
+                      color="#FFFFFF"
+                      strokeWidth={2.4}
+                    />
+                  </LinearGradient>
+                </Pressable>
 
-            <Pressable
-              onPress={() => enter("apple")}
-              style={({ pressed }) => [
-                styles.socialBtn,
-                { backgroundColor: "#0F1B2D" },
-                pressed && { opacity: 0.9 },
-              ]}
-            >
-              <Apple size={18} color="#FFFFFF" strokeWidth={2.4} />
-              <Text style={[styles.socialText, { color: "#FFFFFF" }]}>
-                Continue with Apple
-              </Text>
-            </Pressable>
+                <View style={styles.divider}>
+                  <View style={styles.line} />
+                  <Text style={styles.dividerText}>or</Text>
+                  <View style={styles.line} />
+                </View>
 
-            <Pressable
-              onPress={() => enter("google")}
-              style={({ pressed }) => [
-                styles.socialBtn,
-                styles.socialOutline,
-                pressed && { opacity: 0.85 },
-              ]}
-            >
-              <GoogleGlyph />
-              <Text style={[styles.socialText, { color: Colors.text }]}>
-                Continue with Google
-              </Text>
-            </Pressable>
+                <Pressable
+                  onPress={() => enter("apple")}
+                  style={({ pressed }) => [
+                    styles.socialBtn,
+                    { backgroundColor: "#0F1B2D" },
+                    pressed && { opacity: 0.9 },
+                  ]}
+                >
+                  <Apple size={18} color="#FFFFFF" strokeWidth={2.4} />
+                  <Text
+                    style={[styles.socialText, { color: "#FFFFFF" }]}
+                  >
+                    Continue with Apple
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => enter("google")}
+                  style={({ pressed }) => [
+                    styles.socialBtn,
+                    styles.socialOutline,
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <GoogleGlyph />
+                  <Text
+                    style={[styles.socialText, { color: Colors.text }]}
+                  >
+                    Continue with Google
+                  </Text>
+                </Pressable>
+              </>
+            )}
           </View>
 
           <Text style={styles.fineprint}>
-            By continuing you agree to our Terms and acknowledge our Privacy
-            Policy.
+            By continuing you agree to our Terms and acknowledge our
+            Privacy Policy.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -267,5 +303,36 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     lineHeight: 18,
     paddingHorizontal: 12,
+  },
+  errorBanner: {
+    backgroundColor: "#FEE2E2",
+    padding: 12,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  errorText: {
+    color: "#DC2626",
+    fontSize: 13,
+    fontWeight: "600",
+    flex: 1,
+  },
+  errorDismiss: {
+    color: "#DC2626",
+    fontWeight: "800",
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  loadingWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 24,
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: Colors.textSecondary,
   },
 });

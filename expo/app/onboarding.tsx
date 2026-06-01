@@ -21,7 +21,7 @@ import {
   Users,
   Bell,
 } from "lucide-react-native";
-import { useAuth } from "@/providers/AuthProvider";
+
 import { Colors } from "@/constants/colors";
 
 const { width } = Dimensions.get("window");
@@ -73,7 +73,6 @@ export default function Onboarding() {
   const [index, setIndex] = useState<number>(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const listRef = useRef<FlatList<Slide>>(null);
-  const { completeOnboarding } = useAuth();
 
   const onMomentumEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const i = Math.round(e.nativeEvent.contentOffset.x / width);
@@ -87,13 +86,11 @@ export default function Onboarding() {
     if (index < SLIDES.length - 1) {
       listRef.current?.scrollToIndex({ index: index + 1, animated: true });
     } else {
-      completeOnboarding();
       router.replace("/login");
     }
   };
 
   const skip = () => {
-    completeOnboarding();
     router.replace("/login");
   };
 

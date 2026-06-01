@@ -27,7 +27,7 @@ import { Avatar } from "@/components/Avatar";
 import { ContactRow } from "@/components/ContactRow";
 import { SectionHeader } from "@/components/SectionHeader";
 import { Colors } from "@/constants/colors";
-import { useAuth } from "@/providers/AuthProvider";
+import { useAuth } from "@/hooks/useAuth";
 import {
   useContacts,
   useReconnectSuggestions,

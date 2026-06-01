@@ -27,7 +27,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Avatar } from "@/components/Avatar";
 import { Colors } from "@/constants/colors";
-import { useAuth } from "@/providers/AuthProvider";
+import { useAuth } from "@/hooks/useAuth";
 import { useContacts } from "@/providers/ContactsProvider";
 
 export default function SettingsScreen() {

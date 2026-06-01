@@ -1,5 +1,7 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Animated,
   Easing,
   Platform,
@@ -11,46 +13,30 @@ import {
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import { Camera, ScanLine, Sparkles, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 import { useContacts } from "@/providers/ContactsProvider";
 
-const MOCK_RESULTS = [
-  {
-    name: "Jordan Reyes",
-    title: "Director of Partnerships",
-    company: "Ridgeline Labs",
-    email: "jordan@ridgeline.com",
-    tags: ["BD", "Climate"],
-  },
-  {
-    name: "Maya Singh",
-    title: "Founder",
-    company: "Foldcraft",
-    email: "maya@foldcraft.io",
-    tags: ["AI", "Founder"],
-  },
-  {
-    name: "Theo Kim",
-    title: "Investor",
-    company: "Northbound Capital",
-    email: "theo@northbound.vc",
-    tags: ["Seed", "Investor"],
-  },
-];
+interface ParsedCard {
+  name: string;
+  title: string;
+  company: string;
+  email: string;
+  phone: string;
+}
 
 export default function ScanCard() {
   const insets = useSafeAreaInsets();
   const { addContact } = useContacts();
   const [scanning, setScanning] = useState<boolean>(true);
-  const [result, setResult] = useState<(typeof MOCK_RESULTS)[number] | null>(
-    null
-  );
+  const [processing, setProcessing] = useState<boolean>(false);
+  const [result, setResult] = useState<ParsedCard | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const sweep = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    if (!scanning) return;
+  React.useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(sweep, {
@@ -65,45 +51,73 @@ export default function ScanCard() {
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
     loop.start();
-    const t = setTimeout(() => {
-      const pick = MOCK_RESULTS[Math.floor(Math.random() * MOCK_RESULTS.length)];
-      setResult(pick);
-      setScanning(false);
+    return () => loop.stop();
+  }, [sweep]);
+
+  const captureCard = async () => {
+    setError(null);
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      setError("Camera permission is needed to scan business cards.");
+      return;
+    }
+
+    const pickerResult = await ImagePicker.launchCameraAsync({
+      base64: true,
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [4, 3],
+    });
+
+    if (pickerResult.canceled || !pickerResult.assets[0]?.base64) return;
+
+    setScanning(false);
+    setProcessing(true);
+
+    try {
+      const base64Image = pickerResult.assets[0].base64;
+      const parsed = await runVisionOCR(base64Image);
+      setResult(parsed);
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(
-          Haptics.NotificationFeedbackType.Success
+          Haptics.NotificationFeedbackType.Success,
         ).catch(() => {});
       }
-    }, 2400);
-    return () => {
-      loop.stop();
-      clearTimeout(t);
-    };
-  }, [scanning, sweep]);
-
-  const translateY = sweep.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 220],
-  });
+    } catch (err) {
+      console.error("[SocialCapital] OCR failed:", err);
+      setError("Couldn't read the card. Try again with better lighting.");
+      setScanning(true);
+    } finally {
+      setProcessing(false);
+    }
+  };
 
   const save = () => {
     if (!result) return;
     addContact({
       name: result.name,
-      title: result.title,
-      company: result.company,
-      email: result.email,
-      tags: result.tags,
+      title: result.title || undefined,
+      company: result.company || undefined,
+      email: result.email || undefined,
+      phone: result.phone || undefined,
+      tags: [],
       category: "Associate",
       warmth: "warm",
       strengthScore: 55,
-      notes: [`Scanned business card on ${new Date().toLocaleDateString()}`],
+      notes: [
+        `Scanned business card on ${new Date().toLocaleDateString()}`,
+      ],
     });
     router.back();
   };
+
+  const translateY = sweep.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 220],
+  });
 
   return (
     <View style={styles.container}>
@@ -124,30 +138,42 @@ export default function ScanCard() {
           colors={["#1A2740", "#0F1B2D"]}
           style={styles.cardArea}
         >
-          <View style={styles.cardSurface}>
-            <Camera size={28} color="#0F1B2D" strokeWidth={2.2} />
-            <Text style={styles.cardName}>
-              {result?.name ?? "JANE DOE"}
-            </Text>
-            <Text style={styles.cardTitle}>
-              {result?.title ?? "Senior Product Manager"}
-            </Text>
-            <Text style={styles.cardCompany}>
-              {result?.company ?? "Helix Studio"}
-            </Text>
-            <Text style={styles.cardEmail}>
-              {result?.email ?? "jane@helix.studio"}
-            </Text>
-          </View>
+          {result ? (
+            <View style={styles.cardSurface}>
+              <Text style={styles.cardName}>{result.name}</Text>
+              <Text style={styles.cardTitle}>
+                {result.title || "—"}
+              </Text>
+              <Text style={styles.cardCompany}>
+                {result.company || "—"}
+              </Text>
+              {result.email ? (
+                <Text style={styles.cardEmail}>{result.email}</Text>
+              ) : null}
+              {result.phone ? (
+                <Text style={styles.cardEmail}>{result.phone}</Text>
+              ) : null}
+            </View>
+          ) : (
+            <View style={styles.cardSurface}>
+              <Camera size={28} color="#0F1B2D" strokeWidth={2.2} />
+              <Text style={styles.cardName}>Point camera at card</Text>
+              <Text style={styles.cardTitle}>
+                AI will extract the details
+              </Text>
+            </View>
+          )}
 
-          {/* Corner brackets */}
           {(["TL", "TR", "BL", "BR"] as const).map((p) => (
             <View key={p} style={[styles.bracket, bracketStyle(p)]} />
           ))}
 
           {scanning ? (
             <Animated.View
-              style={[styles.scanLine, { transform: [{ translateY }] }]}
+              style={[
+                styles.scanLine,
+                { transform: [{ translateY }] },
+              ]}
             >
               <LinearGradient
                 colors={[
@@ -165,22 +191,39 @@ export default function ScanCard() {
       </View>
 
       <View style={styles.footer}>
-        {scanning ? (
+        {processing ? (
           <View style={styles.statusRow}>
-            <ScanLine size={16} color={Colors.goldDeep} strokeWidth={2.4} />
-            <Text style={styles.statusText}>Reading card with OCR…</Text>
+            <ActivityIndicator color="#E8C988" />
+            <Text style={styles.statusText}>AI reading card…</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.statusRow}>
+            <Text style={[styles.statusText, { color: "#FCA5A5" }]}>
+              {error}
+            </Text>
           </View>
         ) : result ? (
           <View style={styles.resultCard}>
             <View style={styles.resultHead}>
-              <Sparkles size={14} color={Colors.goldDeep} strokeWidth={2.4} />
+              <Sparkles
+                size={14}
+                color={Colors.goldDeep}
+                strokeWidth={2.4}
+              />
               <Text style={styles.resultHeadText}>AI extracted</Text>
             </View>
             <Text style={styles.resultName}>{result.name}</Text>
             <Text style={styles.resultMeta}>
-              {result.title} · {result.company}
+              {result.title || ""}
+              {result.title && result.company ? " · " : ""}
+              {result.company || ""}
             </Text>
-            <Text style={styles.resultEmail}>{result.email}</Text>
+            {result.email ? (
+              <Text style={styles.resultEmail}>{result.email}</Text>
+            ) : null}
+            {result.phone ? (
+              <Text style={styles.resultEmail}>{result.phone}</Text>
+            ) : null}
             <View style={styles.btnRow}>
               <Pressable
                 onPress={() => {
@@ -189,7 +232,9 @@ export default function ScanCard() {
                 }}
                 style={[styles.btn, styles.btnGhost]}
               >
-                <Text style={[styles.btnText, { color: Colors.text }]}>
+                <Text
+                  style={[styles.btnText, { color: Colors.text }]}
+                >
                   Rescan
                 </Text>
               </Pressable>
@@ -203,18 +248,104 @@ export default function ScanCard() {
               </Pressable>
             </View>
           </View>
+        ) : scanning ? (
+          <Pressable
+            onPress={captureCard}
+            style={({ pressed }) => [
+              styles.captureBtn,
+              pressed && { opacity: 0.85 },
+            ]}
+          >
+            <LinearGradient
+              colors={["#C8A05A", "#A4823F"]}
+              style={styles.captureInner}
+            >
+              <Camera size={22} color="#FFFFFF" strokeWidth={2.4} />
+              <Text style={styles.captureText}>Capture card</Text>
+            </LinearGradient>
+          </Pressable>
         ) : null}
       </View>
     </View>
   );
 }
 
+/**
+ * Send the business card image to an AI vision model through the Rork proxy
+ * for OCR extraction. Returns structured contact info.
+ */
+async function runVisionOCR(base64: string): Promise<ParsedCard> {
+  const TOOLKIT_URL = process.env.EXPO_PUBLIC_TOOLKIT_URL!;
+  const SECRET_KEY = process.env.EXPO_PUBLIC_RORK_TOOLKIT_SECRET_KEY!;
+
+  const response = await fetch(
+    `${TOOLKIT_URL}/v2/vercel/v1/chat/completions`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${SECRET_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: 'Extract the contact details from this business card image. Return ONLY valid JSON with these fields (leave missing ones as empty string): {"name":"","title":"","company":"","email":"","phone":""}',
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:image/jpeg;base64,${base64}`,
+                  detail: "high",
+                },
+              },
+            ],
+          },
+        ],
+        max_tokens: 300,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Vision API error (${response.status})`);
+  }
+
+  const data = (await response.json()) as {
+    choices: Array<{ message: { content: string } }>;
+  };
+
+  const raw = data.choices?.[0]?.message?.content;
+  if (!raw) throw new Error("Empty response");
+
+  // Parse the JSON from the response
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("No JSON in response");
+
+  const parsed = JSON.parse(jsonMatch[0]) as ParsedCard;
+  return parsed;
+}
+
 function bracketStyle(p: "TL" | "TR" | "BL" | "BR") {
   switch (p) {
     case "TL":
-      return { top: -2, left: -2, borderTopWidth: 3, borderLeftWidth: 3 };
+      return {
+        top: -2,
+        left: -2,
+        borderTopWidth: 3,
+        borderLeftWidth: 3,
+      };
     case "TR":
-      return { top: -2, right: -2, borderTopWidth: 3, borderRightWidth: 3 };
+      return {
+        top: -2,
+        right: -2,
+        borderTopWidth: 3,
+        borderRightWidth: 3,
+      };
     case "BL":
       return {
         bottom: -2,
@@ -323,11 +454,28 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.08)",
     paddingVertical: 14,
     borderRadius: 14,
+    paddingHorizontal: 16,
   },
   statusText: {
     color: "#E8C988",
     fontSize: 14,
     fontWeight: "700",
+  },
+  captureBtn: {
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  captureInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 18,
+  },
+  captureText: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+    fontSize: 16,
   },
   resultCard: {
     backgroundColor: Colors.card,

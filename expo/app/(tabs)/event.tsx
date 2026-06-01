@@ -12,8 +12,8 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import { Audio } from "expo-av";
 import * as Haptics from "expo-haptics";
-import * as Speech from "expo-speech";
 import {
   Mic,
   ScanLine,
@@ -158,13 +158,45 @@ export default function EventScreen() {
               <QuickTile
                 label="Voice note"
                 icon={<Mic size={22} color={Colors.text} strokeWidth={2.4} />}
-                onPress={() => {
+                onPress={async () => {
                   if (Platform.OS !== "web") {
-                    Haptics.selectionAsync().catch(() => {});
-                    Speech.speak(
-                      "Voice notes are available when you install Social Capital on your device. Record quick voice memos after every conversation to help the AI remember context.",
-                      { rate: 0.85 }
-                    );
+                    try {
+                      const perm = await Audio.requestPermissionsAsync();
+                      if (!perm.granted) {
+                        Alert.alert("Microphone needed", "Please allow microphone access to record voice notes.");
+                        return;
+                      }
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+                      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+                      const { recording } = await Audio.Recording.createAsync(
+                        Audio.RecordingOptionsPresets.HIGH_QUALITY,
+                      );
+                      // Record for up to 30s then auto-stop
+                      setTimeout(async () => {
+                        try {
+                          await recording.stopAndUnloadAsync();
+                          await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+                          const uri = recording.getURI();
+                          if (uri) {
+                            setQuickNote((prev) =>
+                              prev
+                                ? `${prev} [Voice note attached: ${uri}]`
+                                : `[Voice note: ${uri}]`,
+                            );
+                          }
+                        } catch { /* stop silently */ }
+                      }, 30000);
+                      Alert.alert("Recording", "Voice note will be captured for 30 seconds. It will be attached to your next quick capture.", [{ text: "Stop early", style: "destructive", onPress: async () => {
+                        await recording.stopAndUnloadAsync().catch(() => {});
+                        await Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => {});
+                        const uri = recording.getURI();
+                        if (uri) {
+                          setQuickNote((prev) => prev ? `${prev} [Voice note: ${uri}]` : `[Voice note: ${uri}]`);
+                        }
+                      }}]);
+                    } catch (err) {
+                      Alert.alert("Error", "Could not start recording. Try again.");
+                    }
                   } else {
                     Alert.alert(
                       "Install on device",

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   Alert,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -41,6 +42,7 @@ import {
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Avatar } from "@/components/Avatar";
+import { VoiceRecorder } from "@/components/VoiceRecorder";
 import { WarmthMeter } from "@/components/WarmthIndicator";
 import { Colors } from "@/constants/colors";
 import { useContactById, useContacts } from "@/providers/ContactsProvider";
@@ -230,10 +232,26 @@ export default function ContactDetail() {
               </View>
             ) : null}
             {contact.linkedin ? (
-              <InfoRow
-                icon={<Linkedin size={16} color={Colors.textSecondary} />}
-                label={contact.linkedin}
-              />
+              <Pressable
+                style={styles.infoRow}
+                onPress={() => {
+                  const url = contact.linkedin!.startsWith("http")
+                    ? contact.linkedin!
+                    : `https://${contact.linkedin}`;
+                  Linking.openURL(url).catch(() =>
+                    Alert.alert("Error", "Could not open LinkedIn."),
+                  );
+                }}
+              >
+                <Linkedin size={16} color="#0A66C2" />
+                <Text
+                  style={[styles.infoText, { color: "#0A66C2", fontWeight: "600" }]}
+                  numberOfLines={1}
+                >
+                  View LinkedIn profile
+                </Text>
+                <ExternalLink size={14} color="#0A66C2" strokeWidth={2.2} />
+              </Pressable>
             ) : null}
             {contact.company ? (
               <InfoRow
@@ -292,6 +310,16 @@ export default function ContactDetail() {
           ) : (
             <EmptySocialState />
           )}
+        </View>
+
+        {/* Voice notes */}
+        <View style={styles.card}>
+          <VoiceRecorder
+            contactId={contact.id}
+            notes={[]}
+            onAdd={() => {}}
+            onDelete={() => {}}
+          />
         </View>
 
         {/* Timeline */}

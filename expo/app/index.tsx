@@ -1,22 +1,20 @@
 import React, { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { useAuth } from "@/providers/AuthProvider";
+import { useAuth } from "@/hooks/useAuth";
 import { Colors } from "@/constants/colors";
 
 export default function IndexRedirect() {
-  const { isLoading, hasOnboarded, user } = useAuth();
+  const { isLoading, user } = useAuth();
 
   useEffect(() => {
     if (isLoading) return;
-    if (!hasOnboarded) {
-      router.replace("/onboarding");
-    } else if (!user) {
+    if (!user) {
       router.replace("/login");
     } else {
       router.replace("/(tabs)/home");
     }
-  }, [isLoading, hasOnboarded, user]);
+  }, [isLoading, user]);
 
   return (
     <View style={styles.wrap}>

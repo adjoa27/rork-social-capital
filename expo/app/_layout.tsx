@@ -7,7 +7,7 @@ import { Platform } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { AuthProvider } from "@/providers/AuthProvider";
+import { AuthProvider } from "@/hooks/useAuth";
 import { ContactsProvider } from "@/providers/ContactsProvider";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
