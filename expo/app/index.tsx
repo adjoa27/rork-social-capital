@@ -10,7 +10,7 @@ export default function IndexRedirect() {
   useEffect(() => {
     if (isLoading) return;
     if (!user) {
-      router.replace("/login");
+      router.replace("/onboarding");
     } else {
       router.replace("/(tabs)/home");
     }
