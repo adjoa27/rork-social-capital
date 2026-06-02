@@ -42,7 +42,8 @@
         {
           "contactsPermission": "Social Capital uses your contacts so you can choose which people to add to your network."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true
