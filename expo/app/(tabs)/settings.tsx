@@ -12,9 +12,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import {
   Bell,
   ChevronRight,
-  Cloud,
   Crown,
-  Download,
   HeartHandshake,
   Linkedin,
   LogOut,
@@ -132,14 +130,6 @@ export default function SettingsScreen() {
 
       {/* Privacy */}
       <Section title="Privacy & data">
-        <Row
-          icon={<Cloud size={18} color={Colors.text} strokeWidth={2.4} />}
-          label="iCloud backup"
-        />
-        <Row
-          icon={<Download size={18} color={Colors.text} strokeWidth={2.4} />}
-          label="Export my data"
-        />
         <Row
           icon={<Shield size={18} color={Colors.text} strokeWidth={2.4} />}
           label="Privacy policy"
