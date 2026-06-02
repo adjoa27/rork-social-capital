@@ -1,7 +1,5 @@
-import React, { useCallback } from "react";
+import React from "react";
 import {
-  ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,7 +15,6 @@ import {
   Cloud,
   Crown,
   Download,
-  FileText,
   HeartHandshake,
   Linkedin,
   LogOut,
@@ -25,61 +22,20 @@ import {
   Phone,
   Shield,
   Sparkles,
+  Upload,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Avatar } from "@/components/Avatar";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/hooks/useAuth";
-import { useLinkedIn } from "@/hooks/useLinkedIn";
-import { importPhoneContacts } from "@/lib/importContacts";
 import { useContacts } from "@/providers/ContactsProvider";
-import type { Contact } from "@/constants/mockData";
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { user, signOut } = useAuth();
-  const { contacts, addContact, stats } = useContacts();
-  const { profile: linkedInProfile, loading: linkedInLoading, connectLinkedIn } = useLinkedIn();
+  const { stats } = useContacts();
   const [pushOn, setPushOn] = React.useState<boolean>(true);
   const [smartOn, setSmartOn] = React.useState<boolean>(true);
-  const [importing, setImporting] = React.useState<boolean>(false);
-
-  const handleImportContacts = useCallback(async () => {
-    setImporting(true);
-    try {
-      const existingNames = new Set(
-        contacts.map((c: Contact) => c.name.toLowerCase()),
-      );
-      const result = await importPhoneContacts(existingNames, addContact);
-
-      if (result.permissionDenied) {
-        Alert.alert(
-          "Permission Needed",
-          "Please allow access to your contacts in Settings to import them.",
-        );
-      } else if (result.imported === 0 && result.skipped === 0) {
-        Alert.alert("No Contacts", "No contacts were found on your device.");
-      } else {
-        const msg =
-          result.imported > 0
-            ? `Imported ${result.imported} contact${result.imported !== 1 ? "s" : ""}.`
-            : "";
-        const skipMsg =
-          result.skipped > 0
-            ? ` ${result.skipped} already existed or had no name.`
-            : "";
-        Alert.alert("Contacts Imported", msg + skipMsg);
-      }
-    } catch (err) {
-      Alert.alert("Import Failed", "Something went wrong importing contacts.");
-    } finally {
-      setImporting(false);
-    }
-  }, [contacts, addContact]);
-
-  const handleLinkedIn = useCallback(async () => {
-    await connectLinkedIn();
-  }, [connectLinkedIn]);
 
   return (
     <ScrollView
@@ -150,24 +106,15 @@ export default function SettingsScreen() {
         <Row
           icon={<Phone size={18} color={Colors.text} strokeWidth={2.4} />}
           label="Import phone contacts"
-          onPress={handleImportContacts}
-          accessory={
-            importing ? (
-              <ActivityIndicator size="small" color={Colors.gold} />
-            ) : undefined
-          }
+        />
+        <Row
+          icon={<Upload size={18} color={Colors.text} strokeWidth={2.4} />}
+          label="Upload CSV"
         />
         <Row
           icon={<Linkedin size={18} color={Colors.text} strokeWidth={2.4} />}
           label="Connect LinkedIn"
-          onPress={handleLinkedIn}
-          accessory={
-            linkedInLoading
-              ? "Connecting..."
-              : linkedInProfile
-                ? linkedInProfile.name
-                : undefined
-          }
+          accessory="Coming soon"
         />
       </Section>
 
@@ -200,12 +147,6 @@ export default function SettingsScreen() {
         <Row
           icon={<Shield size={18} color={Colors.text} strokeWidth={2.4} />}
           label="Privacy policy"
-          onPress={() => router.push("/privacy")}
-        />
-        <Row
-          icon={<FileText size={18} color={Colors.text} strokeWidth={2.4} />}
-          label="Terms of service"
-          onPress={() => router.push("/terms")}
         />
         <Row
           icon={<Mail size={18} color={Colors.text} strokeWidth={2.4} />}
@@ -249,31 +190,18 @@ function Row({
   icon,
   label,
   accessory,
-  onPress,
 }: {
   icon: React.ReactNode;
   label: string;
-  accessory?: string | React.ReactNode;
-  onPress?: () => void;
+  accessory?: string;
 }) {
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.row,
-        onPress && pressed && { opacity: 0.6 },
-      ]}
-      onPress={onPress}
-      disabled={!onPress}
-    >
+    <Pressable style={styles.row}>
       <View style={styles.rowIcon}>{icon}</View>
       <Text style={styles.rowLabel}>{label}</Text>
       <View style={{ flex: 1 }} />
-      {typeof accessory === "string" ? (
-        <Text style={styles.rowAcc}>{accessory}</Text>
-      ) : (
-        accessory ?? null
-      )}
-      {onPress ? <ChevronRight size={16} color={Colors.textMuted} /> : null}
+      {accessory ? <Text style={styles.rowAcc}>{accessory}</Text> : null}
+      <ChevronRight size={16} color={Colors.textMuted} />
     </Pressable>
   );
 }

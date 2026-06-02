@@ -1,22 +1,25 @@
-# Settings: phone contacts import, LinkedIn connect, legal screens
+# Fix RLS violations for profiles and contacts tables
 
-## Features
 
-- [x] **Import phone contacts**: Tapping the row asks for permission, then bulk-imports every contact from the phone's address book into the app — name, phone, email, and company get mapped into contacts. A brief summary shows how many were imported.
-- [x] **Connect LinkedIn**: Tapping the row opens a secure LinkedIn sign-in page. After authorizing, the user's own profile (photo, headline, company) is pulled from LinkedIn and displayed in their app profile card. No longer marked "Coming soon."
-- [x] **Upload CSV removed**: The Upload CSV option disappears from the settings screen.
-- [x] **Privacy Policy**: A clean local screen with standard privacy policy text, accessible from the settings row.
-- [x] **Terms of Service**: Same pattern — a local screen with standard terms text, added as a new row under Privacy & Data.
+## Problem
 
-## Design
+Two errors appear at runtime:
 
-- The settings screen keeps its existing dark, gold-accented card style. No layout changes beyond the rows being added/removed.
-- Phone import shows a brief permission prompt and a subtle loading indicator while contacts are being imported, then a small confirmation.
-- LinkedIn connect opens the system browser for OAuth — after returning to the app, the profile card updates with the LinkedIn photo and headline.
-- Privacy Policy and Terms screens are simple scrollable text views with the app's dark background, a back button, and clean typography — matching the app's existing screen style.
+1. `Failed to sync profile: new row violates row-level security policy for table "profiles"`
+2. `Seed insert failed: new row violates row-level security policy for table "contacts"`
 
-## Screens
+These happen because the app tries to write to Supabase even when the user doesn't have a real JWT token (e.g., email sign-in in preview mode). Without a valid JWT, Supabase treats the request as anonymous, and the RLS policies block it.
 
-- [x] **Settings (updated)**: CSV row removed. Import Contacts and LinkedIn rows become functional. Privacy policy row navigates to new screen. New Terms of Service row added.
-- [x] **Privacy Policy screen (new)**: Scrollable page with standard privacy policy text.
-- [x] **Terms of Service screen (new)**: Scrollable page with standard terms of service text.
+## Fix
+
+### Code changes (2 files)
+
+- **`expo/lib/supabase.ts`** — Update `syncProfile` to skip the Supabase upsert when no valid JWT access token is available (email/anonymous users). Silently return instead of hitting Supabase and triggering the RLS error.
+
+- **`expo/providers/ContactsProvider.tsx`** — Update `loadContacts` to skip Supabase seed inserts when no valid JWT access token is available. The local cache and seed data already work correctly for unauthenticated users — the Supabase write should only be attempted when the user is fully authenticated with a real token.
+
+### What stays the same
+
+- Authenticated users with real JWT tokens (Google/Apple OAuth) continue to sync their profile and contacts to Supabase as before
+- Local AsyncStorage cache and seed data still work for email/anonymous users
+- No visual changes — the errors just stop appearing in logs
