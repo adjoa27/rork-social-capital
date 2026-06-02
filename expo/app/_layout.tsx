@@ -57,6 +57,18 @@ function RootLayoutNav() {
         name="scan-card"
         options={{ presentation: "modal", animation: "slide_from_bottom" }}
       />
+      <Stack.Screen
+        name="import-contacts"
+        options={{ presentation: "modal", animation: "slide_from_bottom" }}
+      />
+      <Stack.Screen
+        name="linkedin-connect"
+        options={{ presentation: "modal", animation: "slide_from_bottom" }}
+      />
+      <Stack.Screen
+        name="privacy-policy"
+        options={{ animation: "slide_from_right" }}
+      />
     </Stack>
   );
 }

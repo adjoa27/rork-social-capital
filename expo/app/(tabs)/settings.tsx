@@ -22,7 +22,6 @@ import {
   Phone,
   Shield,
   Sparkles,
-  Upload,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Avatar } from "@/components/Avatar";
@@ -106,15 +105,12 @@ export default function SettingsScreen() {
         <Row
           icon={<Phone size={18} color={Colors.text} strokeWidth={2.4} />}
           label="Import phone contacts"
-        />
-        <Row
-          icon={<Upload size={18} color={Colors.text} strokeWidth={2.4} />}
-          label="Upload CSV"
+          onPress={() => router.push("/import-contacts")}
         />
         <Row
           icon={<Linkedin size={18} color={Colors.text} strokeWidth={2.4} />}
           label="Connect LinkedIn"
-          accessory="Coming soon"
+          onPress={() => router.push("/linkedin-connect")}
         />
       </Section>
 
@@ -147,6 +143,7 @@ export default function SettingsScreen() {
         <Row
           icon={<Shield size={18} color={Colors.text} strokeWidth={2.4} />}
           label="Privacy policy"
+          onPress={() => router.push("/privacy-policy")}
         />
         <Row
           icon={<Mail size={18} color={Colors.text} strokeWidth={2.4} />}
@@ -190,13 +187,15 @@ function Row({
   icon,
   label,
   accessory,
+  onPress,
 }: {
   icon: React.ReactNode;
   label: string;
   accessory?: string;
+  onPress?: () => void;
 }) {
   return (
-    <Pressable style={styles.row}>
+    <Pressable style={styles.row} onPress={onPress}>
       <View style={styles.rowIcon}>{icon}</View>
       <Text style={styles.rowLabel}>{label}</Text>
       <View style={{ flex: 1 }} />
