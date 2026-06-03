@@ -55,23 +55,144 @@ async function saveToCache(contacts: Contact[]) {
   }
 }
 
+async function loadLocalContacts(): Promise<Contact[]> {
+  const cached = await loadFromCache();
+  if (cached.length > 0) return cached;
+  await saveToCache(SEED_CONTACTS);
+  return SEED_CONTACTS;
+}
+
+function createEntityId(prefix: string): string {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function contactToDbRow(contact: Contact, userId: string): Record<string, unknown> {
+  return {
+    id: contact.id,
+    user_id: userId,
+    name: contact.name,
+    photo: contact.photo,
+    company: contact.company,
+    title: contact.title,
+    email: contact.email,
+    phone: contact.phone,
+    linkedin: contact.linkedin,
+    tags: contact.tags,
+    category: contact.category,
+    warmth: contact.warmth,
+    strength_score: contact.strengthScore,
+    notes: contact.notes,
+    met_at: contact.metAt,
+    last_interaction: contact.lastInteraction,
+    birthday: contact.birthday,
+    reminder_cadence_days: contact.reminderCadenceDays,
+    linkedin_connected: contact.linkedinConnected,
+    social_updates: contact.socialUpdates,
+    interactions: contact.interactions,
+  };
+}
+
+function contactPatchToDbPatch(patch: Partial<Contact>): Record<string, unknown> {
+  const dbPatch: Record<string, unknown> = {};
+  if (patch.name !== undefined) dbPatch.name = patch.name;
+  if (patch.photo !== undefined) dbPatch.photo = patch.photo;
+  if (patch.company !== undefined) dbPatch.company = patch.company;
+  if (patch.title !== undefined) dbPatch.title = patch.title;
+  if (patch.email !== undefined) dbPatch.email = patch.email;
+  if (patch.phone !== undefined) dbPatch.phone = patch.phone;
+  if (patch.linkedin !== undefined) dbPatch.linkedin = patch.linkedin;
+  if (patch.tags !== undefined) dbPatch.tags = patch.tags;
+  if (patch.category !== undefined) dbPatch.category = patch.category;
+  if (patch.warmth !== undefined) dbPatch.warmth = patch.warmth;
+  if (patch.strengthScore !== undefined) dbPatch.strength_score = patch.strengthScore;
+  if (patch.notes !== undefined) dbPatch.notes = patch.notes;
+  if (patch.metAt !== undefined) dbPatch.met_at = patch.metAt;
+  if (patch.lastInteraction !== undefined) dbPatch.last_interaction = patch.lastInteraction;
+  if (patch.birthday !== undefined) dbPatch.birthday = patch.birthday;
+  if (patch.reminderCadenceDays !== undefined) {
+    dbPatch.reminder_cadence_days = patch.reminderCadenceDays;
+  }
+  if (patch.linkedinConnected !== undefined) {
+    dbPatch.linkedin_connected = patch.linkedinConnected;
+  }
+  if (patch.socialUpdates !== undefined) dbPatch.social_updates = patch.socialUpdates;
+  if (patch.interactions !== undefined) dbPatch.interactions = patch.interactions;
+  return dbPatch;
+}
+
+function logSupabaseIssue(action: string, message: string): void {
+  const lower = message.toLowerCase();
+  const safeMessage =
+    lower.includes("row-level security") || lower.includes("permission denied")
+      ? "Supabase access policy rejected the request; local copy retained."
+      : message;
+  console.warn(`[SocialCapital] ${action}: ${safeMessage}`);
+}
+
+async function canSyncToSupabase(userId: string | null | undefined): Promise<boolean> {
+  return Boolean(userId) && (await hasValidJwt());
+}
+
+async function saveContactToSupabase(
+  userId: string | null | undefined,
+  contact: Contact,
+): Promise<void> {
+  if (!(await canSyncToSupabase(userId)) || !userId) return;
+
+  const { error } = await supabase
+    .from("contacts")
+    .upsert(contactToDbRow(contact, userId), { onConflict: "id" });
+
+  if (error) logSupabaseIssue("Contact sync failed", error.message);
+}
+
+async function updateContactInSupabase(
+  userId: string | null | undefined,
+  id: string,
+  patch: Record<string, unknown>,
+  action: string,
+): Promise<void> {
+  if (Object.keys(patch).length === 0) return;
+  if (!(await canSyncToSupabase(userId)) || !userId) return;
+
+  const { error } = await supabase
+    .from("contacts")
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", userId);
+
+  if (error) logSupabaseIssue(action, error.message);
+}
+
+async function deleteContactFromSupabase(
+  userId: string | null | undefined,
+  id: string,
+): Promise<void> {
+  if (!(await canSyncToSupabase(userId)) || !userId) return;
+
+  const { error } = await supabase
+    .from("contacts")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
+
+  if (error) logSupabaseIssue("Contact delete sync failed", error.message);
+}
+
 /**
  * Seed contacts from the Supabase database. Falls back to local cache
  * or static seed data when the user is not authenticated.
  */
 async function loadContacts(userId: string | null): Promise<Contact[]> {
-  if (!userId) {
-    // Not authenticated — use local cache or seed data
-    const cached = await loadFromCache();
-    if (cached.length > 0) return cached;
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_CONTACTS));
-    return SEED_CONTACTS;
+  if (!userId || !(await hasValidJwt())) {
+    return loadLocalContacts();
   }
 
   // Fetch from Supabase
   const { data, error } = await supabase
     .from("contacts")
     .select("*")
+    .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -87,65 +208,15 @@ async function loadContacts(userId: string | null): Promise<Contact[]> {
       id: `${userId}_${c.id}`,
     }));
 
-    // Only seed Supabase when the user has a real JWT (OAuth sign-in).
-    // Email/preview sign-ins don't have a valid JWT and can't satisfy RLS.
-    if (await hasValidJwt()) {
-      const inserts = seeded.map(
-      ({
-        id,
-        name,
-        photo,
-        company,
-        title,
-        email,
-        phone,
-        linkedin,
-        tags,
-        category,
-        warmth,
-        strengthScore,
-        notes,
-        metAt,
-        lastInteraction,
-        birthday,
-        reminderCadenceDays,
-        linkedinConnected,
-        socialUpdates,
-        interactions,
-      }) => ({
-        id,
-        user_id: userId,
-        name,
-        photo,
-        company,
-        title,
-        email,
-        phone,
-        linkedin,
-        tags,
-        category,
-        warmth,
-        strength_score: strengthScore,
-        notes,
-        met_at: metAt,
-        last_interaction: lastInteraction,
-        birthday,
-        reminder_cadence_days: reminderCadenceDays,
-        linkedin_connected: linkedinConnected,
-        social_updates: socialUpdates,
-        interactions,
-      }),
-    );
+    const inserts = seeded.map((contact) => contactToDbRow(contact, userId));
 
-      const { error: insertErr } = await supabase
-        .from("contacts")
-        .insert(inserts);
+    const { error: insertErr } = await supabase.from("contacts").insert(inserts);
 
-      if (insertErr) {
-        console.error("[SocialCapital] Seed insert failed:", insertErr.message);
-      }
+    if (insertErr) {
+      logSupabaseIssue("Seed contact sync failed", insertErr.message);
     }
 
+    await saveToCache(seeded);
     return seeded;
   }
 
@@ -195,11 +266,11 @@ export const [ContactsProvider, useContacts] = createContextHook(() => {
   });
 
   useEffect(() => {
-    if (query.data && !hydrated) {
+    if (query.data) {
       setContacts(query.data);
       setHydrated(true);
     }
-  }, [query.data, hydrated]);
+  }, [query.data]);
 
   const persist = useCallback(
     async (next: Contact[]) => {
@@ -213,7 +284,7 @@ export const [ContactsProvider, useContacts] = createContextHook(() => {
     (input: Partial<Contact> & { name: string }) => {
       const now = new Date().toISOString();
       const newContact: Contact = {
-        id: `c_${Date.now()}`,
+        id: createEntityId("c"),
         name: input.name,
         photo: input.photo,
         company: input.company,
@@ -234,7 +305,7 @@ export const [ContactsProvider, useContacts] = createContextHook(() => {
         linkedinConnected: input.linkedinConnected ?? false,
         interactions: input.interactions ?? [
           {
-            id: `i_${Date.now()}`,
+            id: createEntityId("i"),
             type: "note",
             title: "Added to Social Capital",
             date: now,
@@ -242,98 +313,27 @@ export const [ContactsProvider, useContacts] = createContextHook(() => {
         ],
       };
 
-      // Persist to Supabase if authenticated
-      if (user?.id) {
-        supabase
-          .from("contacts")
-          .insert({
-            id: newContact.id,
-            user_id: user.id,
-            name: newContact.name,
-            photo: newContact.photo,
-            company: newContact.company,
-            title: newContact.title,
-            email: newContact.email,
-            phone: newContact.phone,
-            linkedin: newContact.linkedin,
-            tags: newContact.tags,
-            category: newContact.category,
-            warmth: newContact.warmth,
-            strength_score: newContact.strengthScore,
-            notes: newContact.notes,
-            met_at: newContact.metAt,
-            last_interaction: newContact.lastInteraction,
-            birthday: newContact.birthday,
-            reminder_cadence_days: newContact.reminderCadenceDays,
-            linkedin_connected: newContact.linkedinConnected,
-            social_updates: newContact.socialUpdates,
-            interactions: newContact.interactions,
-          })
-          .then(({ error }) => {
-            if (error)
-              console.error(
-                "[SocialCapital] Supabase insert failed:",
-                error.message,
-              );
-          });
-      }
-
-      void persist([newContact, ...contacts]);
+      setContacts((previous) => {
+        const next = [newContact, ...previous];
+        void saveToCache(next);
+        return next;
+      });
+      void saveContactToSupabase(user?.id, newContact);
       return newContact;
     },
-    [contacts, persist, user?.id],
+    [user?.id],
   );
 
   const updateContact = useCallback(
     (id: string, patch: Partial<Contact>) => {
       const next = contacts.map((c) => (c.id === id ? { ...c, ...patch } : c));
       void persist(next);
-
-      if (user?.id) {
-        const dbPatch: Record<string, unknown> = {};
-        if (patch.name !== undefined) dbPatch.name = patch.name;
-        if (patch.photo !== undefined) dbPatch.photo = patch.photo;
-        if (patch.company !== undefined) dbPatch.company = patch.company;
-        if (patch.title !== undefined) dbPatch.title = patch.title;
-        if (patch.email !== undefined) dbPatch.email = patch.email;
-        if (patch.phone !== undefined) dbPatch.phone = patch.phone;
-        if (patch.linkedin !== undefined)
-          dbPatch.linkedin = patch.linkedin;
-        if (patch.tags !== undefined) dbPatch.tags = patch.tags;
-        if (patch.category !== undefined)
-          dbPatch.category = patch.category;
-        if (patch.warmth !== undefined) dbPatch.warmth = patch.warmth;
-        if (patch.strengthScore !== undefined)
-          dbPatch.strength_score = patch.strengthScore;
-        if (patch.notes !== undefined) dbPatch.notes = patch.notes;
-        if (patch.metAt !== undefined) dbPatch.met_at = patch.metAt;
-        if (patch.lastInteraction !== undefined)
-          dbPatch.last_interaction = patch.lastInteraction;
-        if (patch.birthday !== undefined) dbPatch.birthday = patch.birthday;
-        if (patch.reminderCadenceDays !== undefined)
-          dbPatch.reminder_cadence_days = patch.reminderCadenceDays;
-        if (patch.linkedinConnected !== undefined)
-          dbPatch.linkedin_connected = patch.linkedinConnected;
-        if (patch.socialUpdates !== undefined)
-          dbPatch.social_updates = patch.socialUpdates;
-        if (patch.interactions !== undefined)
-          dbPatch.interactions = patch.interactions;
-
-        if (Object.keys(dbPatch).length > 0) {
-          dbPatch.updated_at = new Date().toISOString();
-          supabase
-            .from("contacts")
-            .update(dbPatch)
-            .eq("id", id)
-            .then(({ error }) => {
-              if (error)
-                console.error(
-                  "[SocialCapital] Supabase update failed:",
-                  error.message,
-                );
-            });
-        }
-      }
+      void updateContactInSupabase(
+        user?.id,
+        id,
+        contactPatchToDbPatch(patch),
+        "Contact update sync failed",
+      );
     },
     [contacts, persist, user?.id],
   );
@@ -341,20 +341,7 @@ export const [ContactsProvider, useContacts] = createContextHook(() => {
   const deleteContact = useCallback(
     (id: string) => {
       void persist(contacts.filter((c) => c.id !== id));
-
-      if (user?.id) {
-        supabase
-          .from("contacts")
-          .delete()
-          .eq("id", id)
-          .then(({ error }) => {
-            if (error)
-              console.error(
-                "[SocialCapital] Supabase delete failed:",
-                error.message,
-              );
-          });
-      }
+      void deleteContactFromSupabase(user?.id, id);
     },
     [contacts, persist, user?.id],
   );
@@ -364,7 +351,7 @@ export const [ContactsProvider, useContacts] = createContextHook(() => {
       const next = contacts.map((c) => {
         if (c.id !== id) return c;
         const full: Interaction = {
-          id: `i_${Date.now()}`,
+          id: createEntityId("i"),
           ...interaction,
         };
         return {
@@ -376,22 +363,16 @@ export const [ContactsProvider, useContacts] = createContextHook(() => {
       void persist(next);
 
       const target = next.find((c) => c.id === id);
-      if (target && user?.id) {
-        supabase
-          .from("contacts")
-          .update({
+      if (target) {
+        void updateContactInSupabase(
+          user?.id,
+          id,
+          {
             last_interaction: interaction.date,
             interactions: target.interactions,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", id)
-          .then(({ error }) => {
-            if (error)
-              console.error(
-                "[SocialCapital] Supabase interaction update failed:",
-                error.message,
-              );
-          });
+          },
+          "Contact interaction sync failed",
+        );
       }
     },
     [contacts, persist, user?.id],
@@ -405,21 +386,13 @@ export const [ContactsProvider, useContacts] = createContextHook(() => {
       void persist(next);
 
       const target = next.find((c) => c.id === id);
-      if (target && user?.id) {
-        supabase
-          .from("contacts")
-          .update({
-            notes: target.notes,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", id)
-          .then(({ error }) => {
-            if (error)
-              console.error(
-                "[SocialCapital] Supabase note update failed:",
-                error.message,
-              );
-          });
+      if (target) {
+        void updateContactInSupabase(
+          user?.id,
+          id,
+          { notes: target.notes },
+          "Contact note sync failed",
+        );
       }
     },
     [contacts, persist, user?.id],

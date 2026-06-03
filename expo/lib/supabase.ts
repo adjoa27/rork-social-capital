@@ -1,6 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 import * as SecureStore from "expo-secure-store";
-import type { Database } from "@/src/integrations/supabase/types";
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
@@ -17,7 +16,7 @@ export async function hasValidJwt(): Promise<boolean> {
   return isJwt(token);
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: false,
   },
