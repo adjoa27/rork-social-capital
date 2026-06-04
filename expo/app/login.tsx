@@ -13,25 +13,19 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { Apple, ArrowRight, Heart, Mail } from "lucide-react-native";
+import { ArrowRight, Heart, Mail } from "lucide-react-native";
 import { useAuth } from "@/hooks/useAuth";
 import { Colors } from "@/constants/colors";
 
 export default function Login() {
-  const { signIn, signInWithEmail, isSigningIn, error, clearError } =
-    useAuth();
+  const { signInWithEmail, isSigningIn, error, clearError } = useAuth();
   const [email, setEmail] = useState<string>("");
 
-  const enter = async (provider: "google" | "apple" | "email") => {
+  const enter = async () => {
     if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(
-        () => {},
-      );
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
-    const didSignIn = provider === "email"
-      ? await signInWithEmail(email.trim())
-      : await signIn(provider);
-
+    const didSignIn = await signInWithEmail(email.trim());
     if (didSignIn) {
       router.replace("/(tabs)/home");
     }
@@ -95,7 +89,7 @@ export default function Login() {
                   style={styles.input}
                 />
                 <Pressable
-                  onPress={() => enter("email")}
+                  onPress={enter}
                   style={({ pressed }) => [
                     styles.primaryBtn,
                     pressed && {
@@ -119,44 +113,6 @@ export default function Login() {
                     />
                   </LinearGradient>
                 </Pressable>
-
-                <View style={styles.divider}>
-                  <View style={styles.line} />
-                  <Text style={styles.dividerText}>or</Text>
-                  <View style={styles.line} />
-                </View>
-
-                <Pressable
-                  onPress={() => enter("apple")}
-                  style={({ pressed }) => [
-                    styles.socialBtn,
-                    { backgroundColor: "#0F1B2D" },
-                    pressed && { opacity: 0.9 },
-                  ]}
-                >
-                  <Apple size={18} color="#FFFFFF" strokeWidth={2.4} />
-                  <Text
-                    style={[styles.socialText, { color: "#FFFFFF" }]}
-                  >
-                    Continue with Apple
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={() => enter("google")}
-                  style={({ pressed }) => [
-                    styles.socialBtn,
-                    styles.socialOutline,
-                    pressed && { opacity: 0.85 },
-                  ]}
-                >
-                  <GoogleGlyph />
-                  <Text
-                    style={[styles.socialText, { color: Colors.text }]}
-                  >
-                    Continue with Google
-                  </Text>
-                </Pressable>
               </>
             )}
           </View>
@@ -167,14 +123,6 @@ export default function Login() {
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
-  );
-}
-
-function GoogleGlyph() {
-  return (
-    <View style={styles.gWrap}>
-      <Text style={styles.gText}>G</Text>
     </View>
   );
 }
@@ -253,49 +201,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 15,
   },
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginVertical: 6,
-  },
-  line: { flex: 1, height: 1, backgroundColor: Colors.border },
-  dividerText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: Colors.textMuted,
-    letterSpacing: 0.4,
-  },
-  socialBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
-    borderRadius: 14,
-    gap: 10,
-  },
-  socialOutline: {
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  socialText: {
-    fontWeight: "700",
-    fontSize: 15,
-  },
-  gWrap: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  gText: {
-    color: "#4285F4",
-    fontWeight: "800",
-    fontSize: 14,
-  },
+
   fineprint: {
     textAlign: "center",
     fontSize: 12,
