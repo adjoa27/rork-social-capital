@@ -52,7 +52,7 @@ export function useSubscription(): SubscriptionState {
         return current.availablePackages.map((pkg) => ({
           id: pkg.identifier,
           price: pkg.product.priceString,
-          period: pkg.product.normalPeriod ?? "",
+          period: (pkg.product as { subscriptionPeriod?: string }).subscriptionPeriod ?? "",
           raw: pkg,
         })) as PackageItem[];
       } catch {
@@ -83,15 +83,12 @@ export function useSubscription(): SubscriptionState {
       const isPro =
         customerInfo.entitlements.active["pro"] !== undefined;
       await proQuery.refetch();
-      return { success: isPro, error: null };
+      return { success: isPro, error: isPro ? null : "Purchase completed but pro entitlement not found." };
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Purchase failed";
-      if (
-        msg.includes("cancelled") ||
-        msg.includes("Cancel") ||
-        msg.includes("cancel")
-      ) {
+      const lower = msg.toLowerCase();
+      if (lower.includes("cancel")) {
         return { success: false, error: null };
       }
       return { success: false, error: msg };

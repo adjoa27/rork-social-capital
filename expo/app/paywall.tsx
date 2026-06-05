@@ -45,16 +45,26 @@ export default function PaywallScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
     }
 
-    const targetPkg = packages.find((p) =>
-      selectedPlan === "annual"
-        ? p.period?.toLowerCase().includes("year") ||
-          p.period?.toLowerCase().includes("annual")
-        : p.period?.toLowerCase().includes("month"),
-    );
+    const targetPkg = packages.find((p) => {
+      const pd = (p.period ?? "").toUpperCase();
+      if (!pd) return false;
+      const isAnnual = pd.includes("Y") && !pd.includes("M");
+      const isMonthly = pd.includes("M") && !pd.includes("Y");
+      return selectedPlan === "annual" ? isAnnual : isMonthly;
+    });
 
     if (!targetPkg) {
       setPurchasing(false);
-      setError("Plan not available. Please try again.");
+      if (packages.length === 0) {
+        setError(
+          "No subscription plans are available right now. " +
+            "RevenueCat products may not be configured yet.",
+        );
+      } else {
+        setError(
+          `No ${selectedPlan} plan found. Available: ${packages.map((p) => p.period || "non-subscription").join(", ")}`,
+        );
+      }
       return;
     }
 
