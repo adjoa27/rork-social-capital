@@ -58,7 +58,9 @@ export default function ContactDetail() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const contact = useContactById(id);
-  const { deleteContact } = useContacts();
+  const { deleteContact, addNote } = useContacts();
+  const [noteModalVisible, setNoteModalVisible] = useState<boolean>(false);
+  const [noteText, setNoteText] = useState<string>("");
 
   if (!contact) {
     return (
@@ -274,7 +276,13 @@ export default function ContactDetail() {
         <View style={styles.card}>
           <View style={styles.cardHead}>
             <Text style={styles.cardTitle}>Notes</Text>
-            <Pressable hitSlop={8}>
+            <Pressable
+              hitSlop={8}
+              onPress={() => {
+                setNoteText("");
+                setNoteModalVisible(true);
+              }}
+            >
               <Plus size={18} color={Colors.text} strokeWidth={2.4} />
             </Pressable>
           </View>
@@ -341,6 +349,74 @@ export default function ContactDetail() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Add note modal */}
+      <Modal
+        visible={noteModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setNoteModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setNoteModalVisible(false)}
+        >
+          <Pressable style={styles.modalSheet} onPress={() => {}}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Add note</Text>
+            <Text style={styles.modalSubtitle}>
+              Jot something down about {contact.name.split(" ")[0]}
+            </Text>
+
+            <TextInput
+              style={styles.noteInput}
+              placeholder="e.g. Loves hiking, has two dogs, works at Stripe…"
+              placeholderTextColor={Colors.textMuted}
+              value={noteText}
+              onChangeText={setNoteText}
+              multiline
+              autoFocus
+              textAlignVertical="top"
+            />
+
+            <View style={styles.noteModalActions}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.noteCancelBtn,
+                  pressed && { opacity: 0.7 },
+                ]}
+                onPress={() => setNoteModalVisible(false)}
+              >
+                <Text style={styles.noteCancelBtnText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.noteSaveBtn,
+                  !noteText.trim() && styles.noteSaveBtnDisabled,
+                  pressed && !noteText.trim() && { opacity: 1 },
+                  pressed && noteText.trim() && { opacity: 0.85 },
+                ]}
+                onPress={() => {
+                  const trimmed = noteText.trim();
+                  if (!trimmed) return;
+                  addNote(contact.id, trimmed);
+                  setNoteModalVisible(false);
+                }}
+                disabled={!noteText.trim()}
+              >
+                <Text
+                  style={[
+                    styles.noteSaveBtnText,
+                    !noteText.trim() && styles.noteSaveBtnTextDisabled,
+                  ]}
+                >
+                  Save note
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -1179,6 +1255,50 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.text,
     lineHeight: 18,
+  },
+  noteInput: {
+    backgroundColor: Colors.backgroundAlt,
+    borderRadius: 14,
+    padding: 14,
+    fontSize: 14,
+    color: Colors.text,
+    minHeight: 100,
+    lineHeight: 21,
+  },
+  noteModalActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 16,
+  },
+  noteCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    backgroundColor: Colors.backgroundAlt,
+  },
+  noteCancelBtnText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: Colors.textSecondary,
+  },
+  noteSaveBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    backgroundColor: Colors.text,
+  },
+  noteSaveBtnDisabled: {
+    opacity: 0.4,
+  },
+  noteSaveBtnText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  noteSaveBtnTextDisabled: {
+    color: "#FFFFFF",
   },
   empty: {
     color: Colors.textMuted,
