@@ -29,6 +29,7 @@ function normalizeContact(
     lastInteraction: raw.lastInteraction ?? new Date().toISOString(),
     category: raw.category ?? "Associate",
     linkedinConnected: raw.linkedinConnected ?? false,
+    starred: raw.starred ?? false,
   };
 }
 
@@ -87,6 +88,7 @@ function contactToDbRow(contact: Contact, userId: string): Record<string, unknow
     birthday: contact.birthday,
     reminder_cadence_days: contact.reminderCadenceDays,
     linkedin_connected: contact.linkedinConnected,
+    starred: contact.starred,
     social_updates: contact.socialUpdates,
     interactions: contact.interactions,
   };
@@ -114,6 +116,9 @@ function contactPatchToDbPatch(patch: Partial<Contact>): Record<string, unknown>
   }
   if (patch.linkedinConnected !== undefined) {
     dbPatch.linkedin_connected = patch.linkedinConnected;
+  }
+  if (patch.starred !== undefined) {
+    dbPatch.starred = patch.starred;
   }
   if (patch.socialUpdates !== undefined) dbPatch.social_updates = patch.socialUpdates;
   if (patch.interactions !== undefined) dbPatch.interactions = patch.interactions;
@@ -243,6 +248,7 @@ async function loadContacts(userId: string | null): Promise<Contact[]> {
         | number
         | undefined,
       linkedinConnected: row.linkedin_connected as boolean | undefined,
+      starred: row.starred as boolean | undefined,
       socialUpdates: row.social_updates as
         | Contact["socialUpdates"]
         | undefined,
@@ -398,19 +404,38 @@ export const [ContactsProvider, useContacts] = createContextHook(() => {
     [contacts, persist, user?.id],
   );
 
+  const toggleStarred = useCallback(
+    (id: string) => {
+      const target = contacts.find((c) => c.id === id);
+      if (!target) return;
+      const next = contacts.map((c) =>
+        c.id === id ? { ...c, starred: !c.starred } : c,
+      );
+      void persist(next);
+      void updateContactInSupabase(
+        user?.id,
+        id,
+        { starred: !target.starred },
+        "Contact star sync failed",
+      );
+    },
+    [contacts, persist, user?.id],
+  );
+
   const stats = useMemo(() => {
     const total = contacts.length;
     const strong = contacts.filter((c) => c.warmth === "strong").length;
-    const cooling = contacts.filter(
-      (c) => c.warmth === "cooling" || c.warmth === "cold",
-    ).length;
+    const warm = contacts.filter((c) => c.warmth === "warm").length;
+    const cooling = contacts.filter((c) => c.warmth === "cooling").length;
+    const cold = contacts.filter((c) => c.warmth === "cold").length;
     const avgScore =
       total === 0
         ? 0
         : Math.round(
             contacts.reduce((s, c) => s + c.strengthScore, 0) / total,
           );
-    return { total, strong, cooling, avgScore };
+    const starred = contacts.filter((c) => c.starred).length;
+    return { total, strong, warm, cooling, cold, avgScore, starred };
   }, [contacts]);
 
   return {
@@ -421,6 +446,7 @@ export const [ContactsProvider, useContacts] = createContextHook(() => {
     deleteContact,
     addInteraction,
     addNote,
+    toggleStarred,
     stats,
   };
 });

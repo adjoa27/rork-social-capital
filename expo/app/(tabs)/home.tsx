@@ -17,8 +17,10 @@ import {
   Plus,
   Sparkles,
   TrendingUp,
+  ThermometerSun,
   Snowflake,
-  Users,
+  Thermometer,
+  Star,
   ScanLine,
   Wand2,
 } from "lucide-react-native";
@@ -27,6 +29,7 @@ import { Avatar } from "@/components/Avatar";
 import { ContactRow } from "@/components/ContactRow";
 import { SectionHeader } from "@/components/SectionHeader";
 import { Colors } from "@/constants/colors";
+import { WarmthLevel } from "@/constants/mockData";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useContacts,
@@ -35,9 +38,32 @@ import {
 } from "@/providers/ContactsProvider";
 import { daysSince, relativeTime } from "@/utils/format";
 
+const WARMTH_GRADIENTS: Record<WarmthLevel, readonly [string, string]> = {
+  strong: ["#10B981", "#059669"],
+  warm: ["#D4A85A", "#C8A05A"],
+  cooling: ["#F2994A", "#E07A3D"],
+  cold: ["#94A3B8", "#6E7C92"],
+};
+
+const WARMTH_ICONS: Record<WarmthLevel, React.FC<{ size: number; color: string; strokeWidth: number }>> = {
+  strong: TrendingUp as React.FC<{ size: number; color: string; strokeWidth: number }>,
+  warm: ThermometerSun as React.FC<{ size: number; color: string; strokeWidth: number }>,
+  cooling: Snowflake as React.FC<{ size: number; color: string; strokeWidth: number }>,
+  cold: Thermometer as React.FC<{ size: number; color: string; strokeWidth: number }>,
+};
+
+const WARMTH_LABELS: Record<WarmthLevel, string> = {
+  strong: "Strong",
+  warm: "Warm",
+  cooling: "Cooling",
+  cold: "Cold",
+};
+
+const WARMTH_ORDER: WarmthLevel[] = ["strong", "warm", "cooling", "cold"];
+
 export default function HomeScreen() {
   const { user } = useAuth();
-  const { contacts, stats } = useContacts();
+  const { contacts, stats, toggleStarred } = useContacts();
   const reconnects = useReconnectSuggestions(4);
   const birthdays = useUpcomingBirthdays(60);
   const insets = useSafeAreaInsets();
@@ -56,6 +82,11 @@ export default function HomeScreen() {
     return all;
   }, [contacts]);
 
+  const starredContacts = useMemo(
+    () => contacts.filter((c) => c.starred),
+    [contacts],
+  );
+
   const aiSuggestion = useMemo(() => {
     const top = reconnects[0];
     if (!top) return null;
@@ -67,6 +98,16 @@ export default function HomeScreen() {
           : `${top.name.split(" ")[0]} is due for a touchpoint. We've drafted a warm note based on your notes.`,
     };
   }, [reconnects]);
+
+  const handleWarmthPress = (level: WarmthLevel) => {
+    if (Platform.OS !== "web") {
+      Haptics.selectionAsync().catch(() => {});
+    }
+    router.push({
+      pathname: "/(tabs)/contacts",
+      params: { warmthFilter: level },
+    });
+  };
 
   return (
     <ScrollView
@@ -95,24 +136,64 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      {/* Stats strip */}
-      <View style={styles.statsRow}>
-        <StatCard
-          label="Network"
-          value={`${stats.total}`}
-          icon={<Users size={16} color={Colors.text} strokeWidth={2.4} />}
-        />
-        <StatCard
-          label="Strong"
-          value={`${stats.strong}`}
-          icon={<TrendingUp size={16} color={Colors.success} strokeWidth={2.4} />}
-        />
-        <StatCard
-          label="Cooling"
-          value={`${stats.cooling}`}
-          icon={<Snowflake size={16} color={Colors.cooling} strokeWidth={2.4} />}
-        />
+      {/* Warmth grid — 2x2 */}
+      <View style={styles.warmthGrid}>
+        {WARMTH_ORDER.map((level) => {
+          const [top, bottom] = WARMTH_GRADIENTS[level];
+          const Icon = WARMTH_ICONS[level];
+          const count = stats[level];
+          return (
+            <Pressable
+              key={level}
+              onPress={() => handleWarmthPress(level)}
+              style={({ pressed }) => [
+                styles.warmthCard,
+                pressed && { transform: [{ scale: 0.97 }] },
+              ]}
+            >
+              <LinearGradient
+                colors={[top, bottom]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.warmthCardInner}
+              >
+                <View style={styles.warmthIconCircle}>
+                  <Icon size={18} color={top} strokeWidth={2.4} />
+                </View>
+                <Text style={styles.warmthCount}>{count}</Text>
+                <Text style={styles.warmthLabel}>{WARMTH_LABELS[level]}</Text>
+              </LinearGradient>
+            </Pressable>
+          );
+        })}
       </View>
+
+      {/* Starred contacts */}
+      {starredContacts.length > 0 ? (
+        <View style={{ gap: 12 }}>
+          <SectionHeader
+            title="Starred"
+            caption="Your most important contacts"
+            icon={<Star size={16} color={Colors.goldDeep} strokeWidth={2.4} />}
+          />
+          <View style={{ gap: 10 }}>
+            {starredContacts.slice(0, 5).map((c) => (
+              <ContactRow key={c.id} contact={c} showStar />
+            ))}
+          </View>
+          {starredContacts.length > 5 ? (
+            <Pressable
+              onPress={() => router.push("/(tabs)/contacts")}
+              style={styles.seeAllBtn}
+            >
+              <Text style={styles.seeAllText}>
+                See all {starredContacts.length} starred
+              </Text>
+              <ArrowRight size={14} color={Colors.goldDeep} strokeWidth={2.4} />
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
 
       {/* AI suggestion hero */}
       {aiSuggestion ? (
@@ -290,24 +371,6 @@ function Calendar20() {
   return <Calendar size={20} color={Colors.text} strokeWidth={2.4} />;
 }
 
-function StatCard({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <View style={styles.statCard}>
-      <View style={styles.statIcon}>{icon}</View>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
 function QuickAction({
   label,
   icon,
@@ -362,40 +425,45 @@ const styles = StyleSheet.create({
     letterSpacing: -0.6,
     marginTop: 2,
   },
-  statsRow: {
+  warmthGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
   },
-  statCard: {
-    flex: 1,
-    backgroundColor: Colors.card,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderRadius: 18,
-    gap: 6,
+  warmthCard: {
+    width: "47.5%",
+    borderRadius: 20,
+    overflow: "hidden",
     shadowColor: Colors.shadow,
     shadowOpacity: 1,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
   },
-  statIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: Colors.backgroundAlt,
+  warmthCardInner: {
+    padding: 18,
+    borderRadius: 20,
+    gap: 6,
+  },
+  warmthIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(255,255,255,0.95)",
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 4,
   },
-  statValue: {
-    fontSize: 22,
+  warmthCount: {
+    fontSize: 28,
     fontWeight: "800",
-    color: Colors.text,
+    color: "#FFFFFF",
     letterSpacing: -0.4,
   },
-  statLabel: {
-    fontSize: 12,
-    color: Colors.textSecondary,
+  warmthLabel: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.85)",
     fontWeight: "600",
+    letterSpacing: 0.2,
   },
   aiCardWrap: {
     borderRadius: 24,
@@ -498,6 +566,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: Colors.text,
+  },
+  seeAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 6,
+  },
+  seeAllText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: Colors.goldDeep,
   },
   birthdayCard: {
     backgroundColor: Colors.card,

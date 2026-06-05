@@ -3,20 +3,24 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { Platform } from "react-native";
-import { ChevronRight } from "lucide-react-native";
+import { ChevronRight, Star } from "lucide-react-native";
 import { Avatar } from "@/components/Avatar";
 import { WarmthBadge } from "@/components/WarmthIndicator";
 import { Colors } from "@/constants/colors";
 import { Contact } from "@/constants/mockData";
+import { useContacts } from "@/providers/ContactsProvider";
 import { daysSince } from "@/utils/format";
 
 interface Props {
   contact: Contact;
   onPress?: () => void;
+  showStar?: boolean;
 }
 
-export function ContactRow({ contact, onPress }: Props) {
+export function ContactRow({ contact, onPress, showStar = false }: Props) {
+  const { toggleStarred } = useContacts();
   const days = daysSince(contact.lastInteraction);
+
   return (
     <Pressable
       onPress={() => {
@@ -45,6 +49,26 @@ export function ContactRow({ contact, onPress }: Props) {
           </Text>
         </View>
       </View>
+      {showStar || contact.starred ? (
+        <Pressable
+          onPress={(e) => {
+            e.stopPropagation?.();
+            if (Platform.OS !== "web") {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+            }
+            toggleStarred(contact.id);
+          }}
+          hitSlop={10}
+          style={styles.starBtn}
+        >
+          <Star
+            size={20}
+            color={contact.starred ? Colors.goldDeep : Colors.textMuted}
+            strokeWidth={2.4}
+            fill={contact.starred ? Colors.goldDeep : "transparent"}
+          />
+        </Pressable>
+      ) : null}
       <ChevronRight size={18} color={Colors.textMuted} />
     </Pressable>
   );
@@ -91,5 +115,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textMuted,
     fontWeight: "500",
+  },
+  starBtn: {
+    padding: 4,
   },
 });

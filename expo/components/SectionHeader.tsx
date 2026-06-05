@@ -7,14 +7,18 @@ interface Props {
   caption?: string;
   actionLabel?: string;
   onAction?: () => void;
+  icon?: React.ReactNode;
 }
 
-export function SectionHeader({ title, caption, actionLabel, onAction }: Props) {
+export function SectionHeader({ title, caption, actionLabel, onAction, icon }: Props) {
   return (
     <View style={styles.wrap}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.title}>{title}</Text>
-        {caption ? <Text style={styles.caption}>{caption}</Text> : null}
+      <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
+        {icon}
+        <View>
+          <Text style={styles.title}>{title}</Text>
+          {caption ? <Text style={styles.caption}>{caption}</Text> : null}
+        </View>
       </View>
       {actionLabel ? (
         <Pressable onPress={onAction} hitSlop={8}>

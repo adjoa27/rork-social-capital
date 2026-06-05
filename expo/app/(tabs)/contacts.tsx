@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   FlatList,
   Pressable,
@@ -8,13 +8,12 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Plus, Search, SlidersHorizontal, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ContactRow } from "@/components/ContactRow";
 import { Colors } from "@/constants/colors";
 import {
-  Contact,
   RelationshipCategory,
   WarmthLevel,
 } from "@/constants/mockData";
@@ -37,8 +36,18 @@ const WARMTH: FilterKey[] = ["strong", "warm", "cooling", "cold"];
 export default function ContactsScreen() {
   const insets = useSafeAreaInsets();
   const { contacts } = useContacts();
+  const params = useLocalSearchParams<{ warmthFilter?: string }>();
   const [query, setQuery] = useState<string>("");
   const [filter, setFilter] = useState<FilterKey>("all");
+
+  useEffect(() => {
+    if (params.warmthFilter) {
+      const w = params.warmthFilter as WarmthLevel;
+      if (WARMTH.includes(w)) {
+        setFilter(w);
+      }
+    }
+  }, [params.warmthFilter]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -123,7 +132,7 @@ export default function ContactsScreen() {
           paddingBottom: insets.bottom + 120,
           gap: 10,
         }}
-        renderItem={({ item }) => <ContactRow contact={item} />}
+        renderItem={({ item }) => <ContactRow contact={item} showStar />}
         ListEmptyComponent={<EmptyState query={query} />}
         showsVerticalScrollIndicator={false}
       />

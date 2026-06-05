@@ -270,6 +270,7 @@ export const SEED_CONTACTS: Contact[] = [
     lastInteraction: daysAgo(98),
     reminderCadenceDays: 45,
     linkedinConnected: false,
+    starred: false,
     socialUpdates: [],
     interactions: [
       {
@@ -301,6 +302,7 @@ export const SEED_CONTACTS: Contact[] = [
     birthday: "1992-11-30",
     reminderCadenceDays: 30,
     linkedinConnected: false,
+    starred: false,
     socialUpdates: [],
     interactions: [
       {
@@ -368,6 +370,7 @@ export const SEED_CONTACTS: Contact[] = [
     lastInteraction: daysAgo(72),
     reminderCadenceDays: 60,
     linkedinConnected: false,
+    starred: false,
     socialUpdates: [],
     interactions: [],
   },
@@ -390,6 +393,7 @@ export const SEED_CONTACTS: Contact[] = [
     lastInteraction: daysAgo(18),
     reminderCadenceDays: 45,
     linkedinConnected: false,
+    starred: false,
     socialUpdates: [],
     interactions: [],
   },
