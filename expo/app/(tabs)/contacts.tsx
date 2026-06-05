@@ -108,21 +108,37 @@ export default function ContactsScreen() {
         )}
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipsRow}
-      >
-        {[...CATEGORIES, ...WARMTH].map((k) => (
-          <Chip
-            key={k}
-            active={filter === k}
-            label={chipLabel(k)}
-            onPress={() => setFilter(k)}
-            tone={WARMTH.includes(k) ? (k as WarmthLevel) : undefined}
-          />
-        ))}
-      </ScrollView>
+      <View style={styles.filterSection}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipsRow}
+        >
+          {CATEGORIES.map((k) => (
+            <Chip
+              key={k}
+              active={filter === k}
+              label={chipLabel(k)}
+              onPress={() => setFilter(k)}
+            />
+          ))}
+        </ScrollView>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipsRow}
+        >
+          {WARMTH.map((k) => (
+            <Chip
+              key={k}
+              active={filter === k}
+              label={chipLabel(k)}
+              onPress={() => setFilter(k)}
+              tone={k as WarmthLevel}
+            />
+          ))}
+        </ScrollView>
+      </View>
 
       <FlatList
         data={filtered}
@@ -156,28 +172,37 @@ function Chip({
   onPress: () => void;
   tone?: WarmthLevel;
 }) {
-  const activeBg =
+  const tint =
     tone === "strong"
       ? "#10B981"
       : tone === "warm"
-      ? "#C8A05A"
-      : tone === "cooling"
-      ? "#E07A3D"
-      : tone === "cold"
-      ? "#6E7C92"
-      : Colors.text;
+        ? "#C8A05A"
+        : tone === "cooling"
+        ? "#E07A3D"
+        : tone === "cold"
+        ? "#6E7C92"
+        : undefined;
   return (
     <Pressable
       onPress={onPress}
       style={[
         styles.chip,
-        active && { backgroundColor: activeBg, borderColor: activeBg },
+        active &&
+          (tint
+            ? { backgroundColor: `${tint}1A`, borderColor: `${tint}33` }
+            : { backgroundColor: Colors.text, borderColor: Colors.text }),
       ]}
     >
+      {tint && active ? (
+        <View style={[styles.chipDot, { backgroundColor: tint }]} />
+      ) : null}
       <Text
         style={[
           styles.chipText,
-          active && { color: "#FFFFFF" },
+          active &&
+            (tint
+              ? { color: tint, fontWeight: "700" as const }
+              : { color: "#FFFFFF" }),
         ]}
       >
         {label}
@@ -256,18 +281,29 @@ const styles = StyleSheet.create({
     color: Colors.text,
     paddingVertical: 0,
   },
+  filterSection: {
+    gap: 2,
+  },
   chipsRow: {
     paddingHorizontal: 20,
     gap: 8,
-    paddingVertical: 14,
+    paddingVertical: 6,
   },
   chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  chipDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
   },
   chipText: {
     fontSize: 13,

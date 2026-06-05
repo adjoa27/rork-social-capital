@@ -136,10 +136,10 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      {/* Warmth grid — 2x2 */}
-      <View style={styles.warmthGrid}>
+      {/* Warmth row — compact stat cards */}
+      <View style={styles.warmthRow}>
         {WARMTH_ORDER.map((level) => {
-          const [top, bottom] = WARMTH_GRADIENTS[level];
+          const [top] = WARMTH_GRADIENTS[level];
           const Icon = WARMTH_ICONS[level];
           const count = stats[level];
           return (
@@ -147,22 +147,15 @@ export default function HomeScreen() {
               key={level}
               onPress={() => handleWarmthPress(level)}
               style={({ pressed }) => [
-                styles.warmthCard,
-                pressed && { transform: [{ scale: 0.97 }] },
+                styles.warmthChip,
+                pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
               ]}
             >
-              <LinearGradient
-                colors={[top, bottom]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.warmthCardInner}
-              >
-                <View style={styles.warmthIconCircle}>
-                  <Icon size={18} color={top} strokeWidth={2.4} />
-                </View>
-                <Text style={styles.warmthCount}>{count}</Text>
-                <Text style={styles.warmthLabel}>{WARMTH_LABELS[level]}</Text>
-              </LinearGradient>
+              <View style={[styles.warmthDot, { backgroundColor: top }]}>
+                <Icon size={10} color="#FFFFFF" strokeWidth={3} />
+              </View>
+              <Text style={styles.warmthCount}>{count}</Text>
+              <Text style={styles.warmthLabel}>{WARMTH_LABELS[level]}</Text>
             </Pressable>
           );
         })}
@@ -425,45 +418,41 @@ const styles = StyleSheet.create({
     letterSpacing: -0.6,
     marginTop: 2,
   },
-  warmthGrid: {
+  warmthRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
+    gap: 8,
   },
-  warmthCard: {
-    width: "47.5%",
-    borderRadius: 20,
-    overflow: "hidden",
+  warmthChip: {
+    flex: 1,
+    backgroundColor: Colors.card,
+    paddingVertical: 12,
+    borderRadius: 16,
+    alignItems: "center",
+    gap: 6,
     shadowColor: Colors.shadow,
     shadowOpacity: 1,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
   },
-  warmthCardInner: {
-    padding: 18,
-    borderRadius: 20,
-    gap: 6,
-  },
-  warmthIconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "rgba(255,255,255,0.95)",
+  warmthDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 4,
   },
   warmthCount: {
-    fontSize: 28,
+    fontSize: 18,
     fontWeight: "800",
-    color: "#FFFFFF",
-    letterSpacing: -0.4,
+    color: Colors.text,
+    letterSpacing: -0.3,
   },
   warmthLabel: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.85)",
+    fontSize: 10,
+    color: Colors.textSecondary,
     fontWeight: "600",
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
   },
   aiCardWrap: {
     borderRadius: 24,
